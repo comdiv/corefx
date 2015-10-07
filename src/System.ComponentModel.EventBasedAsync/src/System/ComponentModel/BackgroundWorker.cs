@@ -24,6 +24,11 @@ namespace System.ComponentModel
             _progressReporter = new SendOrPostCallback(ProgressReporter);
         }
 
+        ~BackgroundWorker() // exists for backwards compatibility
+        {
+            Dispose(false);
+        }
+
         private void AsyncOperationCompleted(object arg)
         {
             _isRunning = false;
@@ -175,6 +180,8 @@ namespace System.ComponentModel
 
         private void WorkerThreadStart(object argument)
         {
+            Debug.Assert(_asyncOperation != null, "_asyncOperation not initialized");
+
             object workerResult = null;
             Exception error = null;
             bool cancelled = false;
@@ -197,17 +204,8 @@ namespace System.ComponentModel
                 error = exception;
             }
 
-            RunWorkerCompletedEventArgs e =
-                new RunWorkerCompletedEventArgs(workerResult, error, cancelled);
-
-            if (_asyncOperation != null)
-            {
-                _asyncOperation.PostOperationCompleted(_operationCompleted, e);
-            }
-            else
-            {
-                _operationCompleted(e);
-            }
+            var e = new RunWorkerCompletedEventArgs(workerResult, error, cancelled);
+            _asyncOperation.PostOperationCompleted(_operationCompleted, e);
         }
 
         public void Dispose()

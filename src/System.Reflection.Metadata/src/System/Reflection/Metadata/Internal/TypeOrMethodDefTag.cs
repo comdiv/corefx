@@ -8,7 +8,7 @@ namespace System.Reflection.Metadata.Ecma335
     internal static class TypeOrMethodDefTag
     {
         internal const int NumberOfBits = 1;
-        internal const uint LargeRowSize = 0x00000001 << (16 - NumberOfBits);
+        internal const int LargeRowSize = 0x00000001 << (16 - NumberOfBits);
         internal const uint TypeDef = 0x00000000;
         internal const uint MethodDef = 0x00000001;
         internal const uint TagMask = 0x0000001;
@@ -18,27 +18,27 @@ namespace System.Reflection.Metadata.Ecma335
           | TableMask.MethodDef;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static Handle ConvertToToken(uint typeOrMethodDef)
+        internal static EntityHandle ConvertToHandle(uint typeOrMethodDef)
         {
             uint tokenType = (TagToTokenTypeByteVector >> ((int)(typeOrMethodDef & TagMask) << 3)) << TokenTypeIds.RowIdBitCount;
             uint rowId = (typeOrMethodDef >> NumberOfBits);
 
             if ((rowId & ~TokenTypeIds.RIDMask) != 0)
             {
-                Handle.ThrowInvalidCodedIndex();
+                Throw.InvalidCodedIndex();
             }
 
-            return new Handle(tokenType | rowId);
+            return new EntityHandle(tokenType | rowId);
         }
 
         internal static uint ConvertTypeDefRowIdToTag(TypeDefinitionHandle typeDef)
         {
-            return typeDef.RowId << NumberOfBits | TypeDef;
+            return (uint)typeDef.RowId << NumberOfBits | TypeDef;
         }
 
         internal static uint ConvertMethodDefToTag(MethodDefinitionHandle methodDef)
         {
-            return methodDef.RowId << NumberOfBits | MethodDef;
+            return (uint)methodDef.RowId << NumberOfBits | MethodDef;
         }
     }
 }

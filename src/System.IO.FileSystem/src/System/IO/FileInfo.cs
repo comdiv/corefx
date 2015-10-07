@@ -13,7 +13,7 @@ namespace System.IO
 {
     // Class for creating FileStream objects, and some basic file management
     // routines such as Delete, etc.
-    public sealed class FileInfo : FileSystemInfo
+    public sealed partial class FileInfo : FileSystemInfo
     {
         private String _name;
 
@@ -48,10 +48,10 @@ namespace System.IO
         }
 
         [System.Security.SecuritySafeCritical]
-        internal FileInfo(String fullPath, IFileSystemObject fileSystemObject) : base(fileSystemObject)
+        internal FileInfo(String fullPath, String originalPath)
         {
             Debug.Assert(Path.IsPathRooted(fullPath), "fullPath must be fully qualified!");
-            _name = Path.GetFileName(fullPath);
+            _name = originalPath ?? Path.GetFileName(fullPath);
             OriginalPath = _name;
             FullPath = fullPath;
             DisplayPath = _name;
@@ -218,13 +218,10 @@ namespace System.IO
             }
         }
 
-
-
-
         // User must explicitly specify opening a new file or appending to one.
         public FileStream Open(FileMode mode)
         {
-            return Open(mode, FileAccess.ReadWrite, FileShare.None);
+            return Open(mode, (mode == FileMode.Append ? FileAccess.Write : FileAccess.ReadWrite), FileShare.None);
         }
 
         public FileStream Open(FileMode mode, FileAccess access)
@@ -270,6 +267,18 @@ namespace System.IO
             Contract.EndContractBlock();
 
             String fullDestFileName = PathHelpers.GetFullPathInternal(destFileName);
+
+            // These checks are in place to ensure Unix error throwing happens the same way
+            // as it does on Windows.These checks can be removed if a solution to #2460 is
+            // found that doesn't require validity checks before making an API call.
+            if (!new DirectoryInfo(Path.GetDirectoryName(FullName)).Exists)
+            {
+                throw new DirectoryNotFoundException(SR.Format(SR.IO_PathNotFound_Path, FullName));
+            }
+            if (!Exists)
+            {
+                throw new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, FullName), FullName);
+            }
 
             FileSystem.Current.MoveFile(FullPath, fullDestFileName);
 

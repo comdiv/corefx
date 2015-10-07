@@ -1,10 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using TestSupport.Common_TestSupport;
+using Xunit;
 
 namespace TestSupport
 {
@@ -209,9 +210,6 @@ namespace TestSupport
             /// <param name="expression">The expression to evaluate.</param>
             /// <param name="message">The message to print to the console if the expression is false.</param>
             /// <returns>true if expression is true else false.</returns>
-#if WINCORESYS
-[System.Security.SecuritySafeCritical]
-#endif
             public bool Eval(bool expression, string message)
             {
                 if (!expression)
@@ -219,17 +217,12 @@ namespace TestSupport
                     OutputMessage(message);
                     ++m_numErrors;
 
-                    Xunit.Assert.True(false, message);
-
-                    //if(!_suppressStackOutput) {
-                    //	System.Diagnostics.StackTrace stackTrace = new System.Diagnostics.StackTrace(true);
-                    //	_outputWriter.WriteLine(stackTrace);
-                    //}
+                    Assert.True(expression, message);
 
                     m_outputWriter.WriteLine();
                 }
 
-                return expression;
+                return true;
             }
 
             /// <summary>

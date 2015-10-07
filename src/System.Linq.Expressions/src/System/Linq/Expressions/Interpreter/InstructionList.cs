@@ -816,6 +816,11 @@ namespace System.Linq.Expressions.Interpreter
             Emit(CastInstruction.Create(toType));
         }
 
+        public void EmitCastToEnum(Type toType)
+        {
+            Emit(new CastToEnumInstruction(toType));
+        }
+
         #endregion
 
         #region Boolean Operators
@@ -955,13 +960,9 @@ namespace System.Linq.Expressions.Interpreter
 
         public void EmitNullableCall(MethodInfo method, ParameterInfo[] parameters)
         {
-            Emit(NullableMethodCallInstruction.Create(method.Name, parameters.Length));
+            Emit(NullableMethodCallInstruction.Create(method.Name, parameters.Length, method));
         }
 
-        public void EmitNullCheck(int stackOffset)
-        {
-            Emit(NullCheckInstruction.Create(stackOffset));
-        }
         #endregion
 
         #region Control Flow
@@ -1125,10 +1126,16 @@ namespace System.Linq.Expressions.Interpreter
             Emit(LeaveExceptionHandlerInstruction.Create(EnsureLabelIndex(tryExpressionEndLabel), hasValue));
         }
 
-        public void EmitSwitch(Dictionary<int, int> cases)
+        public void EmitIntSwitch<T>(Dictionary<T, int> cases)
         {
-            Emit(new SwitchInstruction(cases));
+            Emit(new IntSwitchInstruction<T>(cases));
         }
+
+        public void EmitStringSwitch(Dictionary<string, int> cases, StrongBox<int> nullCase)
+        {
+            Emit(new StringSwitchInstruction(cases, nullCase));
+        }
+
         #endregion
     }
 }

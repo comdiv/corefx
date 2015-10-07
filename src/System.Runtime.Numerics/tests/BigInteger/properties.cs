@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using Tools;
 using Xunit;
 
 namespace System.Numerics.Tests
@@ -85,7 +84,7 @@ namespace System.Numerics.Tests
 
             // BigInteger.MinusOne == -1
             Assert.Equal(
-                CultureInfo.CurrentUICulture.NumberFormat.NegativeSign + "1",
+                CultureInfo.CurrentCulture.NumberFormat.NegativeSign + "1",
                 BigInteger.MinusOne.ToString()
             );
             Assert.Equal(new BigInteger((Int64)(-1)), BigInteger.MinusOne);

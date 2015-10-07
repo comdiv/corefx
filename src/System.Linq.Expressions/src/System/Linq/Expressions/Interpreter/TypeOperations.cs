@@ -1899,7 +1899,7 @@ namespace System.Linq.Expressions.Interpreter
 
     internal abstract class NullableMethodCallInstruction : Instruction
     {
-        private static NullableMethodCallInstruction s_hasValue,s_value,s_equals,s_getHashCode,s_getValueOrDefault,s_getValueOrDefault1,s_toString;
+        private static NullableMethodCallInstruction s_hasValue, s_value, s_equals, s_getHashCode, s_getValueOrDefault1, s_toString;
 
         public override int ConsumedStack { get { return 1; } }
         public override int ProducedStack { get { return 1; } }
@@ -1925,14 +1925,10 @@ namespace System.Linq.Expressions.Interpreter
         {
             public override int Run(InterpretedFrame frame)
             {
-                var obj = frame.Pop();
-                if (obj == null)
+                if (frame.Peek() == null)
                 {
+                    frame.Pop();
                     throw new InvalidOperationException();
-                }
-                else
-                {
-                    frame.Push(obj);
                 }
                 return +1;
             }
@@ -1940,9 +1936,20 @@ namespace System.Linq.Expressions.Interpreter
 
         private class GetValueOrDefault : NullableMethodCallInstruction
         {
+            private readonly Type defaultValueType;
+
+            public GetValueOrDefault(MethodInfo mi)
+            {
+                defaultValueType = mi.ReturnType;
+            }
+
             public override int Run(InterpretedFrame frame)
             {
-                // we're already unboxed in the interpreter, so this is a nop.
+                if (frame.Peek() == null)
+                {
+                    frame.Pop();
+                    frame.Push(Activator.CreateInstance(defaultValueType));
+                }
                 return +1;
             }
         }
@@ -2025,8 +2032,7 @@ namespace System.Linq.Expressions.Interpreter
             }
         }
 
-
-        public static Instruction Create(string method, int argCount)
+        public static Instruction Create(string method, int argCount, MethodInfo mi)
         {
             switch (method)
             {
@@ -2037,7 +2043,7 @@ namespace System.Linq.Expressions.Interpreter
                 case "GetValueOrDefault":
                     if (argCount == 0)
                     {
-                        return s_getValueOrDefault ?? (s_getValueOrDefault = new GetValueOrDefault());
+                        return new GetValueOrDefault(mi);
                     }
                     else
                     {
@@ -2048,6 +2054,11 @@ namespace System.Linq.Expressions.Interpreter
                     // System.Nullable doesn't have other instance methods 
                     throw Assert.Unreachable;
             }
+        }
+
+        public static Instruction CreateGetValue()
+        {
+            return s_value ?? (s_value = new GetValue());
         }
     }
 
@@ -2135,39 +2146,21 @@ namespace System.Linq.Expressions.Interpreter
         }
     }
 
-    internal class NullCheckInstruction : Instruction
+    internal class CastToEnumInstruction : CastInstruction
     {
-        private readonly int _stackOffset;
-        private const int CacheSize = 12;
-        private static readonly NullCheckInstruction[] s_cache = new NullCheckInstruction[CacheSize];
-
-        public override int ConsumedStack { get { return 0; } }
-        public override int ProducedStack { get { return 0; } }
-        public override string InstructionName
+        private readonly Type _t;
+        public CastToEnumInstruction(Type t)
         {
-            get { return "NullCheck"; }
-        }
-        private NullCheckInstruction(int stackOffset)
-        {
-            _stackOffset = stackOffset;
-        }
-
-        public static Instruction Create(int stackOffset)
-        {
-            if (stackOffset < CacheSize)
-            {
-                return s_cache[stackOffset] ?? (s_cache[stackOffset] = new NullCheckInstruction(stackOffset));
-            }
-
-            return new NullCheckInstruction(stackOffset);
+            Debug.Assert(t.GetTypeInfo().IsEnum);
+            _t = t;
         }
 
         public override int Run(InterpretedFrame frame)
         {
-            if (frame.Data[frame.StackIndex - 1 - _stackOffset] == null)
-            {
-                throw new NullReferenceException();
-            }
+            var from = frame.Pop();
+            var to = from != null ? Enum.ToObject(_t, from) : from;
+            frame.Push(to);
+
             return +1;
         }
     }
@@ -2243,7 +2236,7 @@ namespace System.Linq.Expressions.Interpreter
                 _frame = frame;
             }
 
-            protected internal override Expression VisitLambda(LambdaExpression node)
+            protected internal override Expression VisitLambda<T>(Expression<T> node)
             {
                 _shadowedVars.Push(new Set<ParameterExpression>(node.Parameters));
                 Expression b = Visit(node.Body);
@@ -2353,7 +2346,7 @@ namespace System.Linq.Expressions.Interpreter
                 if (_variables.TryGetValue(node, out var))
                 {
                     return Expression.Convert(
-                        Expression.Property(
+                        Expression.Field(
                             var.LoadFromArray(
                                 Expression.Constant(_frame.Data),
                                 Expression.Constant(_frame.Closure),

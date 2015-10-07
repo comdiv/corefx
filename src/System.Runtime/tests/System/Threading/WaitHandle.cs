@@ -32,14 +32,24 @@ public static class WaitHandleTests
             new ManualResetEvent(true)
         };
 
-        Assert.Equal(WaitHandle.WaitAny(handles), 2);
-        Assert.Equal(WaitHandle.WaitAny(handles, 1), 2);
-        Assert.Equal(WaitHandle.WaitAny(handles, TimeSpan.FromMilliseconds(1)), 2);
+        Assert.Equal(2, WaitHandle.WaitAny(handles));
+        Assert.Equal(2, WaitHandle.WaitAny(handles, 1));
+        Assert.Equal(2, WaitHandle.WaitAny(handles, TimeSpan.FromMilliseconds(1)));
 
         handles[2].Reset();
 
-        Assert.Equal(WaitHandle.WaitAny(handles, 1), WaitHandle.WaitTimeout);
-        Assert.Equal(WaitHandle.WaitAny(handles, TimeSpan.FromMilliseconds(1)), WaitHandle.WaitTimeout);
+        Assert.Equal(WaitHandle.WaitTimeout, WaitHandle.WaitAny(handles, 1));
+        Assert.Equal(WaitHandle.WaitTimeout, WaitHandle.WaitAny(handles, TimeSpan.FromMilliseconds(1)));
+    }
+
+    [Fact]
+    public static void WaitAnySameHandles()
+    {
+        ManualResetEvent[] wh = new ManualResetEvent[2];
+        wh[0] = new ManualResetEvent(true);
+        wh[1] = wh[0];
+
+        Assert.Equal(0, WaitHandle.WaitAny(wh));
     }
 
     [Fact]
@@ -62,7 +72,17 @@ public static class WaitHandleTests
     }
 
     [Fact]
-    [ActiveIssue("https://github.com/dotnet/coreclr/issues/630", PlatformID.Linux | PlatformID.OSX)]
+    public static void WaitAllSameHandles()
+    {
+        ManualResetEvent[] wh = new ManualResetEvent[2];
+        wh[0] = new ManualResetEvent(true);
+        wh[1] = wh[0];
+
+        Assert.ThrowsAny<ArgumentException>(() => WaitHandle.WaitAll(wh));
+    }
+
+    [Fact]
+    [PlatformSpecific(PlatformID.Windows)] // names aren't supported on Unix
     public static void WaitAllSameNames()
     {
         Mutex[] wh = new Mutex[2];
@@ -73,21 +93,8 @@ public static class WaitHandleTests
     }
 
     [Fact]
-    public static void DisposeTest()
-    {
-        var name = "MyCrazyMutexName" + Guid.NewGuid();
-        var handle = new Mutex(true, name);
-
-        handle.Dispose();
-
-        Assert.False(Mutex.TryOpenExisting(name, out handle));
-        // TODO: Better exceptions on .NET Native
-        //Assert.Throws<ObjectDisposedException>(() => handle.WaitOne(0));
-    }
-
-    [Fact]
     public static void WaitTimeout()
     {
-        Assert.Equal(WaitHandle.WaitAny(new[] { new ManualResetEvent(false) }, 0), WaitHandle.WaitTimeout);
+        Assert.Equal(WaitHandle.WaitTimeout, WaitHandle.WaitAny(new[] { new ManualResetEvent(false) }, 0));
     }
 }

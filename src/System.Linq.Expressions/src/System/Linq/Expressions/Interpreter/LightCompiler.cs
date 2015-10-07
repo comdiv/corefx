@@ -11,7 +11,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-using AstUtils = System.Linq.Expressions.Interpreter.Utils;
+using AstUtils = System.Linq.Expressions.Utils;
 
 namespace System.Linq.Expressions.Interpreter
 {
@@ -264,7 +264,7 @@ namespace System.Linq.Expressions.Interpreter
 
         private readonly LightCompiler _parent;
 
-        private static LocalDefinition[] s_emptyLocals = new LocalDefinition[0];
+        private static LocalDefinition[] s_emptyLocals = Array.Empty<LocalDefinition>();
 
         public LightCompiler()
         {
@@ -1013,7 +1013,8 @@ namespace System.Linq.Expressions.Interpreter
                 Compile(node.Operand);
                 _instructions.EmitStoreLocal(opTemp.Index);
 
-                if (!node.Operand.Type.GetTypeInfo().IsValueType || TypeUtils.IsNullableType(node.Operand.Type))
+                if (!node.Operand.Type.GetTypeInfo().IsValueType || 
+                    (TypeUtils.IsNullableType(node.Operand.Type) && node.IsLiftedToNull))
                 {
                     _instructions.EmitLoadLocal(opTemp.Index);
                     _instructions.EmitLoad(null, typeof(object));
@@ -1021,8 +1022,13 @@ namespace System.Linq.Expressions.Interpreter
                     _instructions.EmitBranchTrue(loadDefault);
                 }
 
-
                 _instructions.EmitLoadLocal(opTemp.Index);
+                if(TypeUtils.IsNullableType(node.Operand.Type) &&
+                    node.Method.GetParametersCached()[0].ParameterType.Equals(TypeUtils.GetNonNullableType(node.Operand.Type)))
+                {
+                    _instructions.Emit(NullableMethodCallInstruction.CreateGetValue());
+                }
+
                 _instructions.EmitCall(node.Method);
 
                 _instructions.EmitBranch(end, false, true);
@@ -1056,9 +1062,18 @@ namespace System.Linq.Expressions.Interpreter
 
             if (typeFrom.GetTypeInfo().IsValueType &&
                 TypeUtils.IsNullableType(typeTo) &&
-                typeTo.GetGenericArguments()[0].Equals(typeFrom))
+                TypeUtils.GetNonNullableType(typeTo).Equals(typeFrom))
             {
                 // VT -> vt?, no conversion necessary
+                return;
+            }
+
+            if (typeTo.GetTypeInfo().IsValueType &&
+                TypeUtils.IsNullableType(typeFrom) &&
+                TypeUtils.GetNonNullableType(typeFrom).Equals(typeTo))
+            {
+                // VT? -> vt, call get_Value
+                _instructions.Emit(NullableMethodCallInstruction.CreateGetValue());
                 return;
             }
 
@@ -1069,12 +1084,15 @@ namespace System.Linq.Expressions.Interpreter
             if ((TypeUtils.IsNumeric(nonNullableFrom) || nonNullableFrom.GetTypeInfo().IsEnum)
                  && (TypeUtils.IsNumeric(nonNullableTo) || nonNullableTo.GetTypeInfo().IsEnum))
             {
+                Type enumTypeTo = null;
+
                 if (nonNullableFrom.GetTypeInfo().IsEnum)
                 {
                     nonNullableFrom = Enum.GetUnderlyingType(nonNullableFrom);
                 }
                 if (nonNullableTo.GetTypeInfo().IsEnum)
                 {
+                    enumTypeTo = nonNullableTo;
                     nonNullableTo = Enum.GetUnderlyingType(nonNullableTo);
                 }
 
@@ -1088,6 +1106,12 @@ namespace System.Linq.Expressions.Interpreter
                 else
                 {
                     _instructions.EmitNumericConvertUnchecked(from, to, isLiftedToNull);
+                }
+
+                if ((object)enumTypeTo != null)
+                {
+                    // Convert from underlying to the enum
+                    _instructions.EmitCastToEnum(enumTypeTo);
                 }
 
                 if (typeTo.IsNullableType())
@@ -1163,6 +1187,13 @@ namespace System.Linq.Expressions.Interpreter
                         Compile(node.Operand);
                         _instructions.EmitDecrement(node.Type);
                         break;
+                    case ExpressionType.UnaryPlus:
+                        Compile(node.Operand);
+                        break;
+                    case ExpressionType.IsTrue:
+                    case ExpressionType.IsFalse:
+                        EmitUnaryBoolCheck(node);
+                        break;
                     default:
                         throw new PlatformNotSupportedException(SR.Format(SR.UnsupportedExpressionType, node.NodeType));
                 }
@@ -1174,31 +1205,44 @@ namespace System.Linq.Expressions.Interpreter
             Compile(node.Operand);
             if (node.IsLifted)
             {
-                LocalDefinition temp = _locals.DefineLocal(
-                    Expression.Parameter(node.Operand.Type),
-                    _instructions.Count
-                );
                 var notNull = _instructions.MakeLabel();
                 var computed = _instructions.MakeLabel();
 
-                _instructions.EmitStoreLocal(temp.Index);
-                _instructions.EmitLoadLocal(temp.Index);
-                _instructions.EmitLoad(null, typeof(object));
-                _instructions.EmitEqual(typeof(object));
-                _instructions.EmitBranchFalse(notNull);
-
-                _instructions.EmitLoad(null, typeof(object));
+                _instructions.EmitCoalescingBranch(notNull);
                 _instructions.EmitBranch(computed);
 
                 _instructions.MarkLabel(notNull);
                 _instructions.EmitCall(node.Method);
 
                 _instructions.MarkLabel(computed);
-                _locals.UndefineLocal(temp, _instructions.Count);
             }
             else
             {
                 _instructions.EmitCall(node.Method);
+            }
+        }
+
+        private void EmitUnaryBoolCheck(UnaryExpression node)
+        {
+            Compile(node.Operand);
+            if (node.IsLifted)
+            {
+                var notNull = _instructions.MakeLabel();
+                var computed = _instructions.MakeLabel();
+
+                _instructions.EmitCoalescingBranch(notNull);
+                _instructions.EmitBranch(computed);
+
+                _instructions.MarkLabel(notNull);
+                _instructions.EmitLoad(node.NodeType == ExpressionType.IsTrue);
+                _instructions.EmitEqual(typeof(bool));
+
+                _instructions.MarkLabel(computed);
+            }
+            else
+            {
+                _instructions.EmitLoad(node.NodeType == ExpressionType.IsTrue);
+                _instructions.EmitEqual(typeof(bool));
             }
         }
 
@@ -1418,28 +1462,92 @@ namespace System.Linq.Expressions.Interpreter
         {
             var node = (SwitchExpression)expr;
 
-            // Currently only supports int test values, with no method
-            if (node.SwitchValue.Type != typeof(int))
+            if (node.Cases.All(c => c.TestValues.All(t => t is ConstantExpression)))
             {
-                throw new PlatformNotSupportedException(SR.SwitchOverNonInt32ValuesNotSupported);
-            }
-            if (node.Comparison != null)
-            {
-                throw new PlatformNotSupportedException(SR.SwitchWithCustomEqualityComparisonMethodNotSupported);
+                var switchType = System.Dynamic.Utils.TypeExtensions.GetTypeCode(node.SwitchValue.Type);
+
+                if (node.Comparison == null)
+                {
+                    switch (switchType)
+                    {
+                        case TypeCode.Int32:
+                            CompileIntSwitchExpression<System.Int32>(node);
+                            return;
+
+                        // the following cases are uncomon,
+                        // so to avoid numerous unecessary generic
+                        // instantiations of Dictionary<K, V> and related types
+                        // in AOT scenarios, we will just use "object" as the key
+                        // NOTE: this does not actually result in any
+                        //       extra boxing since both keys and values
+                        //       are already boxed when we get them
+                        case TypeCode.Byte:
+                        case TypeCode.SByte:
+                        case TypeCode.UInt16:
+                        case TypeCode.Int16:
+                        case TypeCode.UInt32:
+                        case TypeCode.UInt64:
+                        case TypeCode.Int64:
+                            CompileIntSwitchExpression<System.Object>(node);
+                            return;
+                    }
+                }
+
+                if (switchType == TypeCode.String)
+                {
+                    // If we have a comparison other than string equality, bail
+                    MethodInfo equality = typeof(string).GetMethod("op_Equality", new[] { typeof(string), typeof(string) });
+                    if (equality != null && !equality.IsStatic)
+                    {
+                        equality = null;
+                    }
+
+                    if (object.Equals(node.Comparison, equality))
+                    {
+                        CompileStringSwitchExpression(node);
+                        return;
+                    }
+                }
             }
 
-            // Test values must be constant
-            if (!node.Cases.All(c => c.TestValues.All(t => t is ConstantExpression)))
+            LocalDefinition temp = _locals.DefineLocal(Expression.Parameter(node.SwitchValue.Type), _instructions.Count);
+            Compile(node.SwitchValue);
+            _instructions.EmitStoreLocal(temp.Index);
+                        
+            var doneLabel = Expression.Label(node.Type, "done");
+
+            foreach(var @case in node.Cases)
             {
-                throw new PlatformNotSupportedException(SR.NonConstantCaseValuesInSwitchNotSupported);
+                foreach(var val in @case.TestValues)
+                {
+                    //  temp == val ? 
+                    //          goto(Body) doneLabel: 
+                    //          {};
+                    CompileConditionalExpression(
+                        Expression.Condition(
+                            Expression.Equal(temp.Parameter, val, false, node.Comparison),
+                            Expression.Goto(doneLabel, @case.Body),
+                            AstUtils.Empty()
+                        ),
+                        asVoid: true);
+                }
             }
+
+            // doneLabel(DefaultBody):
+            CompileLabelExpression(Expression.Label(doneLabel, node.DefaultBody));
+
+            _locals.UndefineLocal(temp, _instructions.Count);
+        }
+
+        private void CompileIntSwitchExpression<T>(SwitchExpression node)
+        {
             LabelInfo end = DefineLabel(null);
             bool hasValue = node.Type != typeof(void);
 
             Compile(node.SwitchValue);
-            var caseDict = new Dictionary<int, int>();
+            var caseDict = new Dictionary<T, int>();
             int switchIndex = _instructions.Count;
-            _instructions.EmitSwitch(caseDict);
+            _instructions.EmitIntSwitch(caseDict);
 
             if (node.DefaultBody != null)
             {
@@ -1458,7 +1566,65 @@ namespace System.Linq.Expressions.Interpreter
                 int caseOffset = _instructions.Count - switchIndex;
                 foreach (ConstantExpression testValue in switchCase.TestValues)
                 {
-                    caseDict[(int)testValue.Value] = caseOffset;
+                    var key = (T)testValue.Value;
+                    if (!caseDict.ContainsKey(key))
+                    {
+                        caseDict.Add(key, caseOffset);
+                    }
+                }
+
+                Compile(switchCase.Body);
+
+                if (i < node.Cases.Count - 1)
+                {
+                    _instructions.EmitBranch(end.GetLabel(this), false, hasValue);
+                }
+            }
+
+            _instructions.MarkLabel(end.GetLabel(this));
+        }
+
+        private void CompileStringSwitchExpression(SwitchExpression node)
+        {
+            LabelInfo end = DefineLabel(null);
+            bool hasValue = node.Type != typeof(void);
+
+            Compile(node.SwitchValue);
+            var caseDict = new Dictionary<string, int>();
+            int switchIndex = _instructions.Count;
+            // by default same as default
+            var nullCase = new StrongBox<int>(1);
+            _instructions.EmitStringSwitch(caseDict, nullCase);
+
+            if (node.DefaultBody != null)
+            {
+                Compile(node.DefaultBody);
+            }
+            else
+            {
+                Debug.Assert(!hasValue);
+            }
+            _instructions.EmitBranch(end.GetLabel(this), false, hasValue);
+
+            for (int i = 0; i < node.Cases.Count; i++)
+            {
+                var switchCase = node.Cases[i];
+
+                int caseOffset = _instructions.Count - switchIndex;
+                foreach (ConstantExpression testValue in switchCase.TestValues)
+                {
+                    string key = (string)testValue.Value;
+                    if (key == null)
+                    {
+                        if (nullCase.Value == 1)
+                        {
+                            nullCase.Value = caseOffset;
+                        }
+                    }
+                    else if (!caseDict.ContainsKey(key))
+                    {
+                        caseDict.Add(key, caseOffset);
+                    }
                 }
 
                 Compile(switchCase.Body);
@@ -1964,8 +2130,7 @@ namespace System.Linq.Expressions.Interpreter
             }
 
             if (!node.Method.IsStatic &&
-                node.Object.Type.GetTypeInfo().IsGenericType &&
-                node.Object.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+                node.Object.Type.IsNullableType())
             {
                 // reflection doesn't let us call methods on Nullable<T> when the value
                 // is null...  so we get to special case those methods!
@@ -1973,13 +2138,6 @@ namespace System.Linq.Expressions.Interpreter
             }
             else
             {
-                if (!node.Method.IsStatic)
-                {
-                    // emit null check, our instructions don't always do this when they're
-                    // calling via a delegate.  
-                    _instructions.EmitNullCheck(node.Arguments.Count);
-                }
-
                 if (updaters == null)
                 {
                     _instructions.EmitCall(node.Method, parameters);
@@ -2084,17 +2242,19 @@ namespace System.Linq.Expressions.Interpreter
                         _instructions.EmitStoreLocal(memberTemp.Value.Index);
                     }
 
-                    if (member.Member is FieldInfo)
+                    FieldInfo field = member.Member as FieldInfo;
+                    if (field != null)
                     {
-                        _instructions.EmitLoadField((FieldInfo)member.Member);
-                        return new FieldByRefUpdater(memberTemp, (FieldInfo)member.Member, index);
+                        _instructions.EmitLoadField(field);
+                        return new FieldByRefUpdater(memberTemp, field, index);
                     }
-                    else if (member.Member is PropertyInfo)
+                    PropertyInfo property = member.Member as PropertyInfo;
+                    if (property != null)
                     {
-                        _instructions.EmitCall(((PropertyInfo)member.Member).GetGetMethod(true));
-                        if (((PropertyInfo)member.Member).CanWrite)
+                        _instructions.EmitCall(property.GetGetMethod(true));
+                        if (property.CanWrite)
                         {
-                            return new PropertyByRefUpdater(memberTemp, (PropertyInfo)member.Member, index);
+                            return new PropertyByRefUpdater(memberTemp, property, index);
                         }
                         return null;
                     }
@@ -2247,7 +2407,19 @@ namespace System.Linq.Expressions.Interpreter
                     {
                         EmitThisForMethodCall(from);
                     }
-                    _instructions.EmitCall(method);
+
+                    if (!method.IsStatic &&
+                        from.Type.IsNullableType())
+                    {
+                        // reflection doesn't let us call methods on Nullable<T> when the value
+                        // is null...  so we get to special case those methods!
+                        _instructions.EmitNullableCall(method, Array.Empty<ParameterInfo>());
+                    }
+                    else
+                    {
+                        _instructions.EmitCall(method);
+                    }
+
                     return;
                 }
             }
@@ -2392,7 +2564,7 @@ namespace System.Linq.Expressions.Interpreter
 
             if (typeof(LambdaExpression).IsAssignableFrom(node.Expression.Type))
             {
-                var compMethod = node.Expression.Type.GetMethod("Compile", new Type[0]);
+                var compMethod = node.Expression.Type.GetMethod("Compile", Array.Empty<Type>());
                 CompileMethodCallExpression(
                     Expression.Call(
                         Expression.Call(
@@ -2548,7 +2720,7 @@ namespace System.Linq.Expressions.Interpreter
                 return node;
             }
 
-            protected internal override Expression VisitLambda(LambdaExpression node)
+            protected internal override Expression VisitLambda<T>(Expression<T> node)
             {
                 PushParameters(node.Parameters);
 

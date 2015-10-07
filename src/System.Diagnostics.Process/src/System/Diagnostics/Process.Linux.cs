@@ -1,15 +1,43 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace System.Diagnostics
 {
     public partial class Process : IDisposable
     {
+        /// <summary>
+        /// Creates an array of <see cref="Process"/> components that are associated with process resources on a
+        /// remote computer. These process resources share the specified process name.
+        /// </summary>
+        public static Process[] GetProcessesByName(string processName, string machineName)
+        {
+            ProcessManager.ThrowIfRemoteMachine(machineName);
+            if (processName == null)
+            {
+                processName = string.Empty;
+            }
+
+            var reusableReader = new ReusableTextReader();
+            var processes = new List<Process>();
+            foreach (int pid in ProcessManager.EnumerateProcessIds())
+            {
+                Interop.procfs.ParsedStat parsedStat;
+                if (Interop.procfs.TryReadStatFile(pid, out parsedStat, reusableReader) &&
+                    string.Equals(processName, parsedStat.comm, StringComparison.OrdinalIgnoreCase))
+                {
+                    ProcessInfo processInfo = ProcessManager.CreateProcessInfo(parsedStat, reusableReader);
+                    processes.Add(new Process(machineName, false, processInfo.ProcessId, processInfo));
+                }
+            }
+
+            return processes.ToArray();
+        }
+
         /// <summary>Gets the amount of time the process has spent running code inside the operating system core.</summary>
         public TimeSpan PrivilegedProcessorTime
         {
@@ -146,15 +174,14 @@ namespace System.Diagnostics
         private static string GetExePath()
         {
             // Determine the maximum size of a path
-            int maxPath = -1;
-            Interop.libc.GetPathConfValue(ref maxPath, Interop.libc.PathConfNames._PC_PATH_MAX, Interop.libc.DEFAULT_PC_PATH_MAX);
+            int maxPath = Interop.Sys.MaxPath;
 
             // Start small with a buffer allocation, and grow only up to the max path
             for (int pathLen = 256; pathLen < maxPath; pathLen *= 2)
             {
                 // Read from procfs the symbolic link to this process' executable
                 byte[] buffer = new byte[pathLen + 1]; // +1 for null termination
-                int resultLength = (int)Interop.libc.readlink(Interop.procfs.SelfExeFilePath, buffer, (IntPtr)pathLen);
+                int resultLength = Interop.Sys.ReadLink(Interop.procfs.SelfExeFilePath, buffer, pathLen);
 
                 // If we got one, null terminate it (readlink doesn't do this) and return the string
                 if (resultLength > 0)
@@ -165,7 +192,7 @@ namespace System.Diagnostics
 
                 // If the buffer was too small, loop around again and try with a larger buffer.
                 // Otherwise, bail.
-                if (resultLength == 0 || Marshal.GetLastWin32Error() != Interop.Errors.ENAMETOOLONG)
+                if (resultLength == 0 || Interop.Sys.GetLastError() != Interop.Error.ENAMETOOLONG)
                 {
                     break;
                 }
@@ -208,7 +235,12 @@ namespace System.Diagnostics
         private Interop.procfs.ParsedStat GetStat()
         {
             EnsureState(State.HaveId);
-            return Interop.procfs.ReadStatFile(_processId);
+            Interop.procfs.ParsedStat stat;
+            if (!Interop.procfs.TryReadStatFile(_processId, out stat, new ReusableTextReader()))
+            {
+                throw new Win32Exception(SR.ProcessInformationUnavailable);
+            }
+            return stat;
         }
 
     }

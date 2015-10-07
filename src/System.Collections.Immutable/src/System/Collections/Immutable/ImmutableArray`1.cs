@@ -17,7 +17,7 @@ namespace System.Collections.Immutable
     /// <typeparam name="T">The type of element stored by the array.</typeparam>
     /// <devremarks>
     /// This type has a documented contract of being exactly one reference-type field in size.
-    /// Our own ImmutableInterlocked class depends on it, as well as others externally.
+    /// Our own <see cref="ImmutableInterlocked"/> class depends on it, as well as others externally.
     /// IMPORTANT NOTICE FOR MAINTAINERS AND REVIEWERS:
     /// This type should be thread-safe. As a struct, it cannot protect its own fields
     /// from being changed from one thread while its members are executing on other threads
@@ -35,12 +35,12 @@ namespace System.Collections.Immutable
     public partial struct ImmutableArray<T> : IReadOnlyList<T>, IList<T>, IEquatable<ImmutableArray<T>>, IImmutableList<T>, IList, IImmutableArray, IStructuralComparable, IStructuralEquatable
     {
         /// <summary>
-        /// An empty (initialized) instance of ImmutableArray{T}.
+        /// An empty (initialized) instance of <see cref="ImmutableArray{T}"/>.
         /// </summary>
         public static readonly ImmutableArray<T> Empty = new ImmutableArray<T>(new T[0]);
 
         /// <summary>
-        /// The backing field for this instance. References to this value should never be shared with outside code. 
+        /// The backing field for this instance. References to this value should never be shared with outside code.
         /// </summary>
         /// <remarks>
         /// This would be private, but we make it internal so that our own extension methods can access it.
@@ -49,7 +49,7 @@ namespace System.Collections.Immutable
         internal T[] array;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ImmutableArray"/> struct
+        /// Initializes a new instance of the <see cref="ImmutableArray{T}"/> struct
         /// *without making a defensive copy*.
         /// </summary>
         /// <param name="items">The array to use. May be null for "default" arrays.</param>
@@ -130,7 +130,7 @@ namespace System.Collections.Immutable
         /// <param name="index">The zero-based index of the element to get.</param>
         /// <returns>The element at the specified index in the read-only list.</returns>
         /// <exception cref="NotSupportedException">Always thrown from the setter.</exception>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         T IList<T>.this[int index]
         {
             get
@@ -183,7 +183,7 @@ namespace System.Collections.Immutable
         /// <summary>
         /// Gets the number of array in the collection.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         int ICollection<T>.Count
         {
@@ -198,7 +198,7 @@ namespace System.Collections.Immutable
         /// <summary>
         /// Gets the number of array in the collection.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         int IReadOnlyCollection<T>.Count
         {
@@ -217,7 +217,7 @@ namespace System.Collections.Immutable
         /// <returns>
         /// The element.
         /// </returns>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         T IReadOnlyList<T>.this[int index]
         {
             get
@@ -583,11 +583,11 @@ namespace System.Collections.Immutable
 
             if (self.IsEmpty)
             {
-                return new ImmutableArray<T>(items.array);
+                return items;
             }
             else if (items.IsEmpty)
             {
-                return new ImmutableArray<T>(self.array);
+                return self;
             }
 
             return self.InsertRange(index, items.array);
@@ -636,7 +636,7 @@ namespace System.Collections.Immutable
             if (self.IsEmpty)
             {
                 // Be sure what we return is marked as initialized.
-                return new ImmutableArray<T>(items.array);
+                return items;
             }
             else if (items.IsEmpty)
             {
@@ -659,7 +659,7 @@ namespace System.Collections.Immutable
             Requires.Range(index >= 0 && index < self.Length, "index");
 
             T[] tmp = new T[self.Length];
-            Array.Copy(self.array, tmp, self.Length);
+            Array.Copy(self.array, 0, tmp, 0, self.Length);
             tmp[index] = item;
             return new ImmutableArray<T>(tmp);
         }
@@ -728,7 +728,7 @@ namespace System.Collections.Immutable
             self.ThrowNullRefIfNotInitialized();
             int index = self.IndexOf(item, equalityComparer);
             return index < 0
-                ? new ImmutableArray<T>(self.array)
+                ? self
                 : self.RemoveAt(index);
         }
 
@@ -755,6 +755,11 @@ namespace System.Collections.Immutable
             var self = this;
             Requires.Range(index >= 0 && index < self.Length, "index");
             Requires.Range(length >= 0 && index + length <= self.Length, "length");
+
+            if (length == 0)
+            {
+                return self;
+            }
 
             T[] tmp = new T[self.Length - length];
             Array.Copy(self.array, 0, tmp, 0, index);
@@ -817,7 +822,7 @@ namespace System.Collections.Immutable
         [Pure]
         public ImmutableArray<T> RemoveRange(ImmutableArray<T> items)
         {
-            return this.RemoveRange(items.array);
+            return this.RemoveRange(items, EqualityComparer<T>.Default);
         }
 
         /// <summary>
@@ -833,7 +838,22 @@ namespace System.Collections.Immutable
         [Pure]
         public ImmutableArray<T> RemoveRange(ImmutableArray<T> items, IEqualityComparer<T> equalityComparer)
         {
-            return this.RemoveRange(items.array, equalityComparer);
+            var self = this;
+            Requires.NotNull(items.array, "items");
+
+            if (items.IsEmpty)
+            {
+                self.ThrowNullRefIfNotInitialized();
+                return self;
+            }
+            else if (items.Length == 1)
+            {
+                return self.Remove(items[0], equalityComparer);
+            }
+            else
+            {
+                return self.RemoveRange(items.array, equalityComparer);
+            }
         }
 
         /// <summary>
@@ -841,7 +861,7 @@ namespace System.Collections.Immutable
         /// predicate.
         /// </summary>
         /// <param name="match">
-        /// The System.Predicate&lt;T&gt; delegate that defines the conditions of the elements
+        /// The <see cref="Predicate{T}"/> delegate that defines the conditions of the elements
         /// to remove.
         /// </param>
         /// <returns>
@@ -856,7 +876,7 @@ namespace System.Collections.Immutable
 
             if (self.IsEmpty)
             {
-                return new ImmutableArray<T>(self.array);
+                return self;
             }
 
             List<int> removeIndexes = null;
@@ -922,14 +942,14 @@ namespace System.Collections.Immutable
             Requires.Range(index >= 0, "index");
             Requires.Range(count >= 0 && index + count <= self.Length, "count");
 
-            if (comparer == null)
-            {
-                comparer = Comparer<T>.Default;
-            }
-
             // 0 and 1 element arrays don't need to be sorted.
             if (count > 1)
             {
+                if (comparer == null)
+                {
+                    comparer = Comparer<T>.Default;
+                }
+            
                 // Avoid copying the entire array when the array is already sorted.
                 bool outOfOrder = false;
                 for (int i = index + 1; i < index + count; i++)
@@ -944,13 +964,13 @@ namespace System.Collections.Immutable
                 if (outOfOrder)
                 {
                     var tmp = new T[self.Length];
-                    Array.Copy(self.array, tmp, self.Length);
+                    Array.Copy(self.array, 0, tmp, 0, self.Length);
                     Array.Sort(tmp, index, count, comparer);
                     return new ImmutableArray<T>(tmp);
                 }
             }
 
-            return new ImmutableArray<T>(self.array);
+            return self;
         }
 
         /// <summary>
@@ -987,7 +1007,7 @@ namespace System.Collections.Immutable
         /// Returns a hash code for this instance.
         /// </summary>
         /// <returns>
-        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
+        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table.
         /// </returns>
         [Pure]
         public override int GetHashCode()
@@ -997,18 +1017,19 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Determines whether the specified <see cref="System.Object" /> is equal to this instance.
+        /// Determines whether the specified <see cref="System.Object"/> is equal to this instance.
         /// </summary>
-        /// <param name="obj">The <see cref="System.Object" /> to compare with this instance.</param>
+        /// <param name="obj">The <see cref="System.Object"/> to compare with this instance.</param>
         /// <returns>
-        ///   <c>true</c> if the specified <see cref="System.Object" /> is equal to this instance; otherwise, <c>false</c>.
+        ///   <c>true</c> if the specified <see cref="System.Object"/> is equal to this instance; otherwise, <c>false</c>.
         /// </returns>
         [Pure]
         public override bool Equals(object obj)
         {
-            if (obj is ImmutableArray<T>)
+            IImmutableArray other = obj as IImmutableArray;
+            if (other != null)
             {
-                return this.Equals((ImmutableArray<T>)obj);
+                return this.array == other.Array;
             }
 
             return false;
@@ -1019,7 +1040,7 @@ namespace System.Collections.Immutable
         /// </summary>
         /// <param name="other">An object to compare with this object.</param>
         /// <returns>
-        /// true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.
+        /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
         /// </returns>
         [Pure]
         public bool Equals(ImmutableArray<T> other)
@@ -1080,8 +1101,8 @@ namespace System.Collections.Immutable
         /// </summary>
         /// <typeparam name="TResult">The type to filter the elements of the sequence on.</typeparam>
         /// <returns>
-        /// An System.Collections.Generic.IEnumerable&lt;T&gt; that contains elements from
-        /// the input sequence of type TResult.
+        /// An <see cref="IEnumerable{T}"/> that contains elements from
+        /// the input sequence of type <typeparamref name="TResult"/>.
         /// </returns>
         [Pure]
         public IEnumerable<TResult> OfType<TResult>()
@@ -1131,7 +1152,7 @@ namespace System.Collections.Immutable
         /// Returns an enumerator for the contents of the array.
         /// </summary>
         /// <returns>An enumerator.</returns>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         [Pure]
         IEnumerator<T> IEnumerable<T>.GetEnumerator()
         {
@@ -1144,7 +1165,7 @@ namespace System.Collections.Immutable
         /// Returns an enumerator for the contents of the array.
         /// </summary>
         /// <returns>An enumerator.</returns>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         [Pure]
         IEnumerator IEnumerable.GetEnumerator()
         {
@@ -1286,9 +1307,9 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Adds an item to the <see cref="T:System.Collections.IList" />.
+        /// Adds an item to the <see cref="IList"/>.
         /// </summary>
-        /// <param name="value">The object to add to the <see cref="T:System.Collections.IList" />.</param>
+        /// <param name="value">The object to add to the <see cref="IList"/>.</param>
         /// <returns>
         /// The position into which the new element was inserted, or -1 to indicate that the item was not inserted into the collection,
         /// </returns>
@@ -1300,7 +1321,7 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Removes all items from the <see cref="T:System.Collections.Generic.ICollection`1" />.
+        /// Removes all items from the <see cref="ICollection{T}"/>.
         /// </summary>
         /// <exception cref="System.NotSupportedException"></exception>
         [ExcludeFromCodeCoverage]
@@ -1310,11 +1331,11 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Determines whether the <see cref="T:System.Collections.IList" /> contains a specific value.
+        /// Determines whether the <see cref="IList"/> contains a specific value.
         /// </summary>
-        /// <param name="value">The object to locate in the <see cref="T:System.Collections.IList" />.</param>
+        /// <param name="value">The object to locate in the <see cref="IList"/>.</param>
         /// <returns>
-        /// true if the <see cref="T:System.Object" /> is found in the <see cref="T:System.Collections.IList" />; otherwise, false.
+        /// true if the <see cref="object"/> is found in the <see cref="IList"/>; otherwise, false.
         /// </returns>
         [ExcludeFromCodeCoverage]
         bool IList.Contains(object value)
@@ -1325,11 +1346,11 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Determines the index of a specific item in the <see cref="T:System.Collections.IList" />.
+        /// Determines the index of a specific item in the <see cref="IList"/>.
         /// </summary>
-        /// <param name="value">The object to locate in the <see cref="T:System.Collections.IList" />.</param>
+        /// <param name="value">The object to locate in the <see cref="IList"/>.</param>
         /// <returns>
-        /// The index of <paramref name="value" /> if found in the list; otherwise, -1.
+        /// The index of <paramref name="value"/> if found in the list; otherwise, -1.
         /// </returns>
         [ExcludeFromCodeCoverage]
         int IList.IndexOf(object value)
@@ -1340,10 +1361,10 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Inserts an item to the <see cref="T:System.Collections.IList" /> at the specified index.
+        /// Inserts an item to the <see cref="IList"/> at the specified index.
         /// </summary>
-        /// <param name="index">The zero-based index at which <paramref name="value" /> should be inserted.</param>
-        /// <param name="value">The object to insert into the <see cref="T:System.Collections.IList" />.</param>
+        /// <param name="index">The zero-based index at which <paramref name="value"/> should be inserted.</param>
+        /// <param name="value">The object to insert into the <see cref="IList"/>.</param>
         /// <exception cref="System.NotSupportedException"></exception>
         [ExcludeFromCodeCoverage]
         void IList.Insert(int index, object value)
@@ -1380,7 +1401,7 @@ namespace System.Collections.Immutable
         /// <summary>
         /// Gets the size of the array.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         [ExcludeFromCodeCoverage]
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         int ICollection.Count
@@ -1394,7 +1415,7 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// See the ICollection interface.
+        /// See the <see cref="ICollection"/> interface.
         /// </summary>
         [ExcludeFromCodeCoverage]
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
@@ -1414,20 +1435,13 @@ namespace System.Collections.Immutable
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         object ICollection.SyncRoot
         {
-            get
-            {
-                // As a struct, this instance will be boxed in order to call this property getter.
-                // We will return the boxed instance. If the caller boxes and reboxes repeatedly,
-                // they'll get a different SyncRoot each time.
-                // No real alternative, but we don't anticipate this will be much problem anyway.
-                return this;
-            }
+            get { throw new NotSupportedException(); }
         }
 
         /// <summary>
-        /// Removes the first occurrence of a specific object from the <see cref="T:System.Collections.IList" />.
+        /// Removes the first occurrence of a specific object from the <see cref="IList"/>.
         /// </summary>
-        /// <param name="value">The object to remove from the <see cref="T:System.Collections.IList" />.</param>
+        /// <param name="value">The object to remove from the <see cref="IList"/>.</param>
         /// <exception cref="System.NotSupportedException"></exception>
         [ExcludeFromCodeCoverage]
         void IList.Remove(object value)
@@ -1436,7 +1450,7 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Removes the <see cref="T:System.Collections.Generic.IList`1" /> item at the specified index.
+        /// Removes the <see cref="IList{T}"/> item at the specified index.
         /// </summary>
         /// <param name="index">The zero-based index of the item to remove.</param>
         /// <exception cref="System.NotSupportedException"></exception>
@@ -1455,7 +1469,7 @@ namespace System.Collections.Immutable
         /// <param name="index">The index.</param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException">Always thrown from the setter.</exception>
-        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault" /> property returns true.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the <see cref="IsDefault"/> property returns true.</exception>
         [ExcludeFromCodeCoverage]
         object IList.this[int index]
         {
@@ -1469,10 +1483,10 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Copies the elements of the <see cref="T:System.Collections.ICollection" /> to an <see cref="T:System.Array" />, starting at a particular <see cref="T:System.Array" /> index.
+        /// Copies the elements of the <see cref="ICollection"/> to an <see cref="Array"/>, starting at a particular <see cref="Array"/> index.
         /// </summary>
-        /// <param name="array">The one-dimensional <see cref="T:System.Array" /> that is the destination of the elements copied from <see cref="T:System.Collections.ICollection" />. The <see cref="T:System.Array" /> must have zero-based indexing.</param>
-        /// <param name="index">The zero-based index in <paramref name="array" /> at which copying begins.</param>
+        /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection"/>. The <see cref="Array"/> must have zero-based indexing.</param>
+        /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
         [ExcludeFromCodeCoverage]
         void ICollection.CopyTo(Array array, int index)
         {
@@ -1578,27 +1592,27 @@ namespace System.Collections.Immutable
         {
             // Force NullReferenceException if array is null by touching its Length.
             // This way of checking has a nice property of requiring very little code
-            // and not having any conditions/branches. 
+            // and not having any conditions/branches.
             // In a faulting scenario we are relying on hardware to generate the fault.
-            // And in the non-faulting scenario (most common) the check is virtually free since 
+            // And in the non-faulting scenario (most common) the check is virtually free since
             // if we are going to do anything with the array, we will need Length anyways
-            // so touching it, and potentially causing a cache miss, is not going to be an 
+            // so touching it, and potentially causing a cache miss, is not going to be an
             // extra expense.
             var unused = this.array.Length;
 
             // This line is a workaround for a bug in C# compiler
-            // The code in this line will not be emitted, but it will prevent incorrect 
+            // The code in this line will not be emitted, but it will prevent incorrect
             // optimizing away of "Length" call above in Release builds.
             // TODO: remove the workaround when building with Roslyn which does not have this bug.
             var unused2 = unused;
         }
 
         /// <summary>
-        /// Throws an <see cref="InvalidOperationException"/> if the array field is null, ie. the
+        /// Throws an <see cref="InvalidOperationException"/> if the <see cref="array"/> field is null, i.e. the
         /// <see cref="IsDefault"/> property returns true.  The
-        /// InvalidOperationException message specifies that the operation cannot be performed
-        /// on a default instance of ImmutableArray.
-        /// 
+        /// <see cref="InvalidOperationException"/> message specifies that the operation cannot be performed
+        /// on a default instance of <see cref="ImmutableArray{T}"/>.
+        ///
         /// This is intended for explicitly implemented interface method and property implementations.
         /// </summary>
         private void ThrowInvalidOperationIfNotInitialized()
@@ -1628,7 +1642,7 @@ namespace System.Collections.Immutable
             if (indexesToRemove.Count == 0)
             {
                 // Be sure to return a !IsDefault instance.
-                return new ImmutableArray<T>(self.array);
+                return self;
             }
 
             var newArray = new T[self.Length - indexesToRemove.Count];
@@ -1651,7 +1665,7 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
-        /// Throws a NullReferenceException if the specified array is uninitialized.
+        /// Throws a <see cref="NullReferenceException"/> if the specified array is uninitialized.
         /// </summary>
         private static void ThrowNullRefIfNotInitialized(ImmutableArray<T> array)
         {

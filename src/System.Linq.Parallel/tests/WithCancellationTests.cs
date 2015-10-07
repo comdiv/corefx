@@ -1,15 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Xunit;
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Xunit;
 
-namespace Test
+namespace System.Linq.Parallel.Tests
 {
     // a key part of cancellation testing is 'promptness'.  Those tests appear in pfxperfunittests.
     // the tests here are only regarding basic API correctness and sanity checking.
@@ -22,15 +20,14 @@ namespace Test
             var cs = new CancellationTokenSource();
             cs.Cancel();
 
-            int[] srcEnumerable = Enumerable.Range(0, 1000).ToArray();
-            ThrowOnFirstEnumerable<int> throwOnFirstEnumerable = new ThrowOnFirstEnumerable<int>(srcEnumerable);
+            IEnumerable<int> throwOnFirstEnumerable = Enumerables<int>.ThrowOnEnumeration();
 
             try
             {
                 throwOnFirstEnumerable
                     .AsParallel()
                     .WithCancellation(cs.Token)
-                    .ForAll((x) => { Console.WriteLine(x.ToString()); });
+                    .ForAll((x) => { Debug.WriteLine(x.ToString()); });
             }
             catch (OperationCanceledException ex)
             {
@@ -48,8 +45,7 @@ namespace Test
             var cs = new CancellationTokenSource();
             cs.Cancel();
 
-            int[] srcEnumerable = Enumerable.Range(0, 1000).ToArray();
-            ThrowOnFirstEnumerable<int> throwOnFirstEnumerable = new ThrowOnFirstEnumerable<int>(srcEnumerable);
+            IEnumerable<int> throwOnFirstEnumerable = Enumerables<int>.ThrowOnEnumeration();
 
             try
             {
@@ -117,85 +113,15 @@ namespace Test
             Assert.Equal(tokenSource.Token, caughtException.CancellationToken);
         }
 
-        [Fact]
-        public static void CTT_NonSorting_AsynchronousMergerEnumeratorDispose()
-        {
-            int size = 10000;
-            CancellationTokenSource tokenSource = new CancellationTokenSource();
-            Exception caughtException = null;
-
-            IEnumerator<int> enumerator = null;
-            ParallelQuery<int> query = null;
-            query = Enumerable.Range(1, size).AsParallel()
-                        .WithCancellation(tokenSource.Token)
-                        .Select(i =>
-                        {
-                            enumerator.Dispose();
-                            return i;
-                        });
-
-            enumerator = query.GetEnumerator();
-            try
-            {
-                for (int j = 0; j < 1000; j++)
-                {
-                    enumerator.MoveNext();
-                }
-            }
-            catch (Exception ex)
-            {
-                caughtException = ex;
-            }
-
-            Assert.NotNull(caughtException);
-        }
-
-        [Fact]
-        public static void CTT_NonSorting_SynchronousMergerEnumeratorDispose()
-        {
-            int size = 10000;
-            CancellationTokenSource tokenSource = new CancellationTokenSource();
-            Exception caughtException = null;
-
-            IEnumerator<int> enumerator = null;
-            var query =
-                    Enumerable.Range(1, size).AsParallel()
-                        .WithCancellation(tokenSource.Token)
-                        .Select(
-                        i =>
-                        {
-                            enumerator.Dispose();
-                            return i;
-                        }).WithMergeOptions(ParallelMergeOptions.FullyBuffered);
-
-            enumerator = query.GetEnumerator();
-            try
-            {
-                // This query should run for at least a few seconds due to the sleeps in the select-delegate
-                for (int j = 0; j < 1000; j++)
-                {
-                    enumerator.MoveNext();
-                }
-            }
-            catch (ObjectDisposedException ex)
-            {
-                caughtException = ex;
-            }
-
-            Assert.NotNull(caughtException);
-        }
-
-        
-
         /// <summary>
-        /// 
+        ///
         /// [Regression Test]
-        ///   This issue occured because the QuerySettings structure was not being deep-cloned during 
+        ///   This issue occurred because the QuerySettings structure was not being deep-cloned during
         ///   query-opening.  As a result, the concurrent inner-enumerators (for the RHS operators)
         ///   that occur in SelectMany were sharing CancellationState that they should not have.
-        ///   The result was that enumerators could falsely believe they had been canceled when 
+        ///   The result was that enumerators could falsely believe they had been canceled when
         ///   another inner-enumerator was disposed.
-        ///   
+        ///
         ///   Note: the failure was intermittent.  this test would fail about 1 in 2 times on mikelid1 (4-core).
         /// </summary>
         /// <returns></returns>
@@ -227,7 +153,7 @@ namespace Test
         // Use of the async channel can block both the consumer and producer threads.. before the cancellation work
         // these had no means of being awoken.
         //
-        // However, only the producers need to wake up on cancellation as the consumer 
+        // However, only the producers need to wake up on cancellation as the consumer
         // will wake up once all the producers have gone away (via AsynchronousOneToOneChannel.SetDone())
         //
         // To specifically verify this test, we want to know that the Async channels were blocked in TryEnqueChunk before Dispose() is called
@@ -236,10 +162,9 @@ namespace Test
         [OuterLoop]  // explicit timeouts / delays
         public static void ChannelCancellation_ProducerBlocked()
         {
-            Console.WriteLine("PlinqCancellationTests.ChannelCancellation_ProducerBlocked()");
+            Debug.WriteLine("PlinqCancellationTests.ChannelCancellation_ProducerBlocked()");
 
-
-            Console.WriteLine("        Query running (should be few seconds max)..");
+            Debug.WriteLine("        Query running (should be few seconds max)..");
             var query1 = Enumerable.Range(0, 100000000)  //provide 100million elements to ensure all the cores get >64K ints. Good up to 1600cores
                 .AsParallel()
                 .Select(x => x);
@@ -249,7 +174,7 @@ namespace Test
             enumerator1.MoveNext();
             enumerator1.Dispose(); //can potentially hang
 
-            Console.WriteLine("        Done (success).");
+            Debug.WriteLine("        Done (success).");
         }
 
         /// <summary>
@@ -277,7 +202,7 @@ namespace Test
                 Assert.True(false, string.Format("PlinqCancellationTests.AggregatesShouldntWrapOCE:  > Failed: got {0}, expected OperationCanceledException", e.GetType().ToString()));
             }
 
-            Assert.True(false, string.Format("PlinqCancellationTests.AggregatesShouldntWrapOCE:  > Failed: no exception occured, expected OperationCanceledException"));
+            Assert.True(false, string.Format("PlinqCancellationTests.AggregatesShouldntWrapOCE:  > Failed: no exception occurred, expected OperationCanceledException"));
         }
 
         // Plinq suppresses OCE(externalCT) occurring in worker threads and then throws a single OCE(ct)
@@ -480,16 +405,15 @@ namespace Test
                 {
                     var item = walker.Current;
                 }
-                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_1:  OperationCanceledException was expected, but no exception occured."));
+                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_1:  OperationCanceledException was expected, but no exception occurred."));
             }
             catch (OperationCanceledException)
             {
-                //This is expected.                
+                //This is expected.
             }
-
             catch (Exception e)
             {
-                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_1:  OperationCanceledException was expected, but a different exception occured.  " + e.ToString()));
+                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_1:  OperationCanceledException was expected, but a different exception occurred.  " + e.ToString()));
             }
         }
 
@@ -509,7 +433,7 @@ namespace Test
                 while (walker.MoveNext())
                 {
                 }
-                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_2:  failed.  AggregateException was expected, but no exception occured."));
+                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_2:  failed.  AggregateException was expected, but no exception occurred."));
             }
             catch (AggregateException)
             {
@@ -517,11 +441,11 @@ namespace Test
             }
             catch (Exception e)
             {
-                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_2.  failed.  AggregateException was expected, but some other exception occured." + e.ToString()));
+                Assert.True(false, string.Format("PlinqCancellationTests.SetOperationsThrowAggregateOnCancelOrDispose_2.  failed.  AggregateException was expected, but some other exception occurred." + e.ToString()));
             }
         }
 
-        // Changes made to hash-partitioning (April'09) lost the cancellation checks during the 
+        // Changes made to hash-partitioning (April'09) lost the cancellation checks during the
         // main repartitioning loop (matrix building).
         [Fact]
         public static void HashPartitioningCancellation()
@@ -623,131 +547,6 @@ namespace Test
             }
 
             Assert.NotNull(oce);
-        }
-
-        // To help the user, we will check if a cancellation token passed to WithCancellation() is 
-        // not backed by a disposed CTS.  This will help them identify incorrect cts.Dispose calls, but 
-        // doesn't solve all their problems if they don't manage CTS lifetime correctly.
-        // We test via a few random queries that have shown inconsistent behavior in the past.
-        [Fact]
-        public static void PreDisposedCTSPassedToPlinq()
-        {
-            ArgumentException ae1 = null;
-            ArgumentException ae2 = null;
-            ArgumentException ae3 = null;
-
-            CancellationTokenSource cts = new CancellationTokenSource();
-            CancellationToken ct = cts.Token;
-            cts.Dispose();  // Early dispose
-            try
-            {
-                Enumerable.Range(1, 10).AsParallel()
-                    .WithCancellation(ct)
-                    .OrderBy(x => x)
-                    .ToArray();
-            }
-            catch (Exception ex)
-            {
-                // This is not going to be the case since we changed the behavior of WithCancellation
-                // to not throw when called on disposed cancellationtokens.
-                ae1 = (ArgumentException)ex;
-            }
-
-            try
-            {
-                Enumerable.Range(1, 10).AsParallel()
-                    .WithCancellation(ct)
-                    .Last();
-            }
-            catch (Exception ex)
-            {
-                // This is not going to be the case since we changed the behavior of WithCancellation
-                // to not throw when called on disposed cancellationtokens.
-                ae2 = (ArgumentException)ex;
-            }
-
-            try
-            {
-                Enumerable.Range(1, 10).AsParallel()
-                    .WithCancellation(ct)
-                    .OrderBy(x => x)
-                    .Last();
-            }
-            catch (Exception ex)
-            {
-                // This is not going to be the case since we changed the behavior of WithCancellation
-                // to not throw when called on disposed cancellationtokens.
-                ae3 = (ArgumentException)ex;
-            }
-
-            Assert.Null(ae1); 
-            Assert.Null(ae2);
-            Assert.Null(ae3);
-        }
-
-        public static void SimulateThreadSleep(int milliseconds)
-        {
-            ManualResetEvent mre = new ManualResetEvent(false);
-            mre.WaitOne(milliseconds);
-        }
-    }
-
-    // ---------------------------
-    // Helper classes
-    // ---------------------------
-
-    internal class ThrowOnFirstEnumerable<T> : IEnumerable<T>
-    {
-        private readonly IEnumerable<T> _innerEnumerable;
-
-        public ThrowOnFirstEnumerable(IEnumerable<T> innerEnumerable)
-        {
-            _innerEnumerable = innerEnumerable;
-        }
-
-        public IEnumerator<T> GetEnumerator()
-        {
-            return new ThrowOnFirstEnumerator<T>(_innerEnumerable.GetEnumerator());
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-    }
-
-    internal class ThrowOnFirstEnumerator<T> : IEnumerator<T>
-    {
-        private IEnumerator<T> _innerEnumerator;
-
-        public ThrowOnFirstEnumerator(IEnumerator<T> sourceEnumerator)
-        {
-            _innerEnumerator = sourceEnumerator;
-        }
-
-        public void Dispose()
-        {
-            _innerEnumerator.Dispose();
-        }
-
-        public bool MoveNext()
-        {
-            throw new InvalidOperationException("ThrowOnFirstEnumerator throws on the first MoveNext");
-        }
-
-        public T Current
-        {
-            get { return _innerEnumerator.Current; }
-        }
-
-        object IEnumerator.Current
-        {
-            get { return Current; }
-        }
-
-        public void Reset()
-        {
-            _innerEnumerator.Reset();
         }
     }
 }

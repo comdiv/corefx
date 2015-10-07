@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading;
 using Xunit;
 
-public partial class FileSystemWatcher_4000_Tests
+public class InternalBufferSizeTests
 {
     [Fact]
     [ActiveIssue(1165)]
@@ -24,10 +24,10 @@ public partial class FileSystemWatcher_4000_Tests
                 unblockHandler.WaitOne();
             };
 
-            AutoResetEvent eventOccured = new AutoResetEvent(false);
+            AutoResetEvent eventOccurred = new AutoResetEvent(false);
             watcher.Error += (o, e) =>
             {
-                eventOccured.Set();
+                eventOccurred.Set();
             };
             watcher.EnableRaisingEvents = true;
 
@@ -39,7 +39,7 @@ public partial class FileSystemWatcher_4000_Tests
             }
 
             unblockHandler.Set();
-            Utility.ExpectEvent(eventOccured, "error");
+            Utility.ExpectEvent(eventOccurred, "error");
 
             // Update InternalBufferSize to accomadate the data
             watcher.InternalBufferSize = watcher.InternalBufferSize * 2;
@@ -52,7 +52,7 @@ public partial class FileSystemWatcher_4000_Tests
             }
             unblockHandler.Set();
             // This time we should not see an error
-            Utility.ExpectNoEvent(eventOccured, "error");
+            Utility.ExpectNoEvent(eventOccurred, "error");
         }
     }
 }

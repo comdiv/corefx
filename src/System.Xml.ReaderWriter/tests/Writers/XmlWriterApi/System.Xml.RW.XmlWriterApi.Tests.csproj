@@ -6,16 +6,14 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{E6DAD59F-7CB7-4E70-B4C5-FCCBC3376EDE}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AssemblyName>System.Xml.RW.XmlWriterApiTests</AssemblyName>
+    <AssemblyName>System.Xml.RW.XmlWriterApi.Tests</AssemblyName>
     <RootNamespace>XmlWriterAPI.Test</RootNamespace>
-    <TestCategories>OuterLoop</TestCategories>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
   </PropertyGroup>
-  <!-- References are resolved from packages.config -->
   <ItemGroup>
     <Compile Include="CommonTests.cs" />
     <Compile Include="EndOfLineHandlingTests.cs" />
@@ -55,6 +53,9 @@
     <Compile Include="XmlFactoryWriterTests.cs" />
     <Compile Include="XmlWriterTestCaseBase.cs" />
     <Compile Include="XmlWriterTestModule.cs" />
+    <Compile Include="$(CommonPath)\System\Diagnostics\CodeAnalysis\ExcludeFromCodeCoverageAttribute.cs">
+      <Link>Common\System\Diagnostics\CodeAnalysis\ExcludeFromCodeCoverageAttribute.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
@@ -68,14 +69,13 @@
       <Project>{89701565-f68b-46d9-bd78-95b0f052c50b}</Project>
       <Name>XmlCoreTest</Name>
     </ProjectReference>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj">
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project>
-      <Name>XunitTraitsDiscoverers</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\..\src\System.Xml.ReaderWriter.csproj">
       <Project>{c559743a-762e-4d9d-b986-e77bdb97652e}</Project>
       <Name>System.Xml.ReaderWriter</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

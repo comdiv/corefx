@@ -137,7 +137,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._basePriority;
+                return _processInfo.BasePriority;
             }
         }
 
@@ -196,21 +196,6 @@ namespace System.Diagnostics
                     _haveExitTime = true;
                 }
                 return _exitTime;
-            }
-        }
-
-        /// <devdoc>
-        ///    <para>
-        ///       Gets the number of handles that are associated
-        ///       with the process.
-        ///    </para>
-        /// </devdoc>
-        public int HandleCount
-        {
-            get
-            {
-                EnsureState(State.HaveProcessInfo);
-                return _processInfo._handleCount;
             }
         }
 
@@ -307,7 +292,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._poolNonpagedBytes;
+                return _processInfo.PoolNonPagedBytes;
             }
         }
 
@@ -316,7 +301,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._pageFileBytes;
+                return _processInfo.PageFileBytes;
             }
         }
 
@@ -325,7 +310,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._poolPagedBytes;
+                return _processInfo.PoolPagedBytes;
             }
         }
 
@@ -334,7 +319,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._pageFileBytesPeak;
+                return _processInfo.PageFileBytesPeak;
             }
         }
 
@@ -343,7 +328,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._workingSetPeak;
+                return _processInfo.WorkingSetPeak;
             }
         }
 
@@ -352,7 +337,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._virtualBytesPeak;
+                return _processInfo.VirtualBytesPeak;
             }
         }
 
@@ -417,7 +402,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._privateBytes;
+                return _processInfo.PrivateBytes;
             }
         }
 
@@ -432,7 +417,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._processName;
+                return _processInfo.ProcessName;
             }
         }
 
@@ -466,7 +451,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._sessionId;
+                return _processInfo.SessionId;
             }
         }
 
@@ -526,6 +511,7 @@ namespace System.Diagnostics
                     {
                         newThreadsArray[i] = new ProcessThread(_isRemoteMachine, _processId, (ThreadInfo)_processInfo._threadInfoList[i]);
                     }
+
                     ProcessThreadCollection newThreads = new ProcessThreadCollection(newThreadsArray);
                     _threads = newThreads;
                 }
@@ -538,7 +524,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._virtualBytes;
+                return _processInfo.VirtualBytes;
             }
         }
 
@@ -648,7 +634,7 @@ namespace System.Diagnostics
             get
             {
                 EnsureState(State.HaveProcessInfo);
-                return _processInfo._workingSet;
+                return _processInfo.WorkingSet;
             }
         }
 
@@ -908,35 +894,6 @@ namespace System.Diagnostics
 
         /// <devdoc>
         ///    <para>
-        ///       Creates an array of <see cref='System.Diagnostics.Process'/> components that are associated with process resources on a
-        ///       remote computer. These process resources share the specified process name.
-        ///    </para>
-        /// </devdoc>
-        public static Process[] GetProcessesByName(string processName, string machineName)
-        {
-            if (processName == null) processName = String.Empty;
-            Process[] procs = GetProcesses(machineName);
-            List<Process> list = new List<Process>();
-
-            for (int i = 0; i < procs.Length; i++)
-            {
-                if (String.Equals(processName, procs[i].ProcessName, StringComparison.OrdinalIgnoreCase))
-                {
-                    list.Add(procs[i]);
-                }
-                else
-                {
-                    procs[i].Dispose();
-                }
-            }
-
-            Process[] temp = new Process[list.Count];
-            list.CopyTo(temp, 0);
-            return temp;
-        }
-
-        /// <devdoc>
-        ///    <para>
         ///       Creates a new <see cref='System.Diagnostics.Process'/>
         ///       component for each process resource on the local computer.
         ///    </para>
@@ -961,7 +918,7 @@ namespace System.Diagnostics
             for (int i = 0; i < processInfos.Length; i++)
             {
                 ProcessInfo processInfo = processInfos[i];
-                processes[i] = new Process(machineName, isRemoteMachine, processInfo._processId, processInfo);
+                processes[i] = new Process(machineName, isRemoteMachine, processInfo.ProcessId, processInfo);
             }
 #if FEATURE_TRACESWITCH
             Debug.WriteLineIf(_processTracing.TraceVerbose, "Process.GetProcesses(" + machineName + ")");
@@ -1123,39 +1080,9 @@ namespace System.Diagnostics
             return StartCore(startInfo);
         }
 
-        // In most scenario 437 is the codepage used for Console encoding. However this encoding is not available by default and so we use the try{} catch{} pattern and use UTF8 in case of failure.
-        // This ensures that if the user uses Encoding.RegisterProvider to register the encoding the Process class can automatically get the codepage as well.
         private static Encoding GetEncoding(int codePage)
         {
-            Encoding enc = null;
-            try
-            {
-                enc = Encoding.GetEncoding(codePage);
-            }
-            catch (NotSupportedException)
-            {
-                // There is no data available for the above codePage so we will use UTF8 instead with emitPrefix set to false.
-                enc = new UTF8Encoding(false);
-            }
-            return enc;
-        }
-
-        public static Process Start(string fileName, string userName, SecureString password, string domain)
-        {
-            ProcessStartInfo startInfo = new ProcessStartInfo(fileName);
-            startInfo.UserName = userName;
-            startInfo.Password = password;
-            startInfo.Domain = domain;
-            return Start(startInfo);
-        }
-
-        public static Process Start(string fileName, string arguments, string userName, SecureString password, string domain)
-        {
-            ProcessStartInfo startInfo = new ProcessStartInfo(fileName, arguments);
-            startInfo.UserName = userName;
-            startInfo.Password = password;
-            startInfo.Domain = domain;
-            return Start(startInfo);
+            return EncodingHelper.GetSupportedConsoleEncoding(codePage);
         }
 
         /// <devdoc>
@@ -1295,7 +1222,7 @@ namespace System.Diagnostics
                 }
 
                 Stream s = _standardOutput.BaseStream;
-                _output = new AsyncStreamReader(this, s, OutputReadNotifyUser, _standardOutput.CurrentEncoding);
+                _output = new AsyncStreamReader(s, OutputReadNotifyUser, _standardOutput.CurrentEncoding);
             }
             _output.BeginReadLine();
         }
@@ -1335,7 +1262,7 @@ namespace System.Diagnostics
                 }
 
                 Stream s = _standardError.BaseStream;
-                _error = new AsyncStreamReader(this, s, ErrorReadNotifyUser, _standardError.CurrentEncoding);
+                _error = new AsyncStreamReader(s, ErrorReadNotifyUser, _standardError.CurrentEncoding);
             }
             _error.BeginReadLine();
         }

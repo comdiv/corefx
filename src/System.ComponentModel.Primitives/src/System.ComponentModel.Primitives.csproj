@@ -8,13 +8,13 @@
     <OutputType>Library</OutputType>
     <RootNamespace>System.ComponentModel.Primitives</RootNamespace>
     <AssemblyName>System.ComponentModel.Primitives</AssemblyName>
-    <AssemblyVersion>4.0.0.0</AssemblyVersion>
+    <AssemblyVersion>4.0.1.0</AssemblyVersion>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-  </PropertyGroup>  
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="System\ComponentModel\ComponentCollection.cs" />
     <Compile Include="System\ComponentModel\IComponent.cs" />
@@ -22,7 +22,7 @@
     <Compile Include="System\ComponentModel\ISite.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
-   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

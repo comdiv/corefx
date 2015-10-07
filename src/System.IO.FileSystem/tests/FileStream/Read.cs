@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class FileStream_Read : FileSystemTest
     {
@@ -17,6 +17,13 @@ namespace System.IO.FileSystem.Tests
             {
                 Assert.Throws<ArgumentNullException>("array", () => fs.Read(null, 0, 1));
             }
+        }
+
+        [Fact]
+        public void NegativeReadRootThrows()
+        {
+            Assert.Throws<UnauthorizedAccessException>(() =>
+                new FileStream(Path.GetPathRoot(Directory.GetCurrentDirectory()), FileMode.Open, FileAccess.Read));
         }
 
         [Fact]

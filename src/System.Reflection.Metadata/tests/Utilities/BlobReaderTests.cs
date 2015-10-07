@@ -3,7 +3,6 @@
 
 using System.Reflection.Internal;
 using System.Text;
-using TestUtilities;
 using Xunit;
 
 namespace System.Reflection.Metadata.Tests
@@ -103,7 +102,7 @@ namespace System.Reflection.Metadata.Tests
                 Assert.Equal(0, reader.Offset);
 
                 Assert.True(reader.SeekOffset(0));
-                AssertEx.Equal(buffer, reader.ReadBytes(4));
+                Assert.Equal(buffer, reader.ReadBytes(4));
                 Assert.Equal(4, reader.Offset);
 
                 Assert.True(reader.SeekOffset(0));
@@ -164,7 +163,7 @@ namespace System.Reflection.Metadata.Tests
                 Assert.Equal(SignatureTypeCode.Invalid, reader.ReadSignatureTypeCode());
 
                 Assert.Equal(4, reader.Offset);
-                Assert.Equal(default(Handle), reader.ReadTypeHandle());
+                Assert.Equal(default(EntityHandle), reader.ReadTypeHandle());
 
                 Assert.Equal(4, reader.Offset);
                 Assert.Throws<BadImageFormatException>(() => reader.ReadBoolean());
@@ -223,23 +222,23 @@ namespace System.Reflection.Metadata.Tests
                 var block = new MemoryBlock(bufferPtr, buffer.Length);
 
                 // small ref size always fits in 16 bits
-                Assert.Equal(0xFFFFU, block.PeekReference(0, smallRefSize: true));
-                Assert.Equal(0xFFFFU, block.PeekReference(4, smallRefSize: true));
+                Assert.Equal(0xFFFF, block.PeekReference(0, smallRefSize: true));
+                Assert.Equal(0xFFFF, block.PeekReference(4, smallRefSize: true));
                 Assert.Equal(0xFFFFU, block.PeekTaggedReference(0, smallRefSize: true));
                 Assert.Equal(0xFFFFU, block.PeekTaggedReference(4, smallRefSize: true));
                 Assert.Equal(0x01FFU, block.PeekTaggedReference(6, smallRefSize: true));
 
                 // large ref size throws on > RIDMask when tagged variant is not used.
-                AssertEx.Throws<BadImageFormatException>(() => block.PeekReference(0, smallRefSize: false), MetadataResources.RowIdOrHeapOffsetTooLarge);
-                AssertEx.Throws<BadImageFormatException>(() => block.PeekReference(4, smallRefSize: false), MetadataResources.RowIdOrHeapOffsetTooLarge);
+                Assert.Throws<BadImageFormatException>(() => block.PeekReference(0, smallRefSize: false));
+                Assert.Throws<BadImageFormatException>(() => block.PeekReference(4, smallRefSize: false));
 
                 // large ref size does not throw when Tagged variant is used.
                 Assert.Equal(0xFFFFFFFFU, block.PeekTaggedReference(0, smallRefSize: false));
                 Assert.Equal(0x01FFFFFFU, block.PeekTaggedReference(4, smallRefSize: false));
 
                 // bounds check applies in all cases
-                AssertEx.Throws<BadImageFormatException>(() => block.PeekReference(7, smallRefSize: true), MetadataResources.OutOfBoundsRead);
-                AssertEx.Throws<BadImageFormatException>(() => block.PeekReference(5, smallRefSize: false), MetadataResources.OutOfBoundsRead);
+                Assert.Throws<BadImageFormatException>(() => block.PeekReference(7, smallRefSize: true));
+                Assert.Throws<BadImageFormatException>(() => block.PeekReference(5, smallRefSize: false));
             }
         }
 

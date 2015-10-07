@@ -1,17 +1,49 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Generic;
+using System.ComponentModel;
+
 namespace System.Diagnostics
 {
     public partial class Process
     {
+        /// <summary>
+        /// Creates an array of <see cref="Process"/> components that are associated with process resources on a
+        /// remote computer. These process resources share the specified process name.
+        /// </summary>
+        public static Process[] GetProcessesByName(string processName, string machineName)
+        {
+            if (processName == null)
+            {
+                processName = string.Empty;
+            }
+
+            Process[] procs = GetProcesses(machineName);
+            var list = new List<Process>();
+
+            for (int i = 0; i < procs.Length; i++)
+            {
+                if (string.Equals(processName, procs[i].ProcessName, StringComparison.OrdinalIgnoreCase))
+                {
+                    list.Add(procs[i]);
+                }
+                else
+                {
+                    procs[i].Dispose();
+                }
+            }
+
+            return list.ToArray();
+        }
+
         /// <summary>Gets the amount of time the process has spent running code inside the operating system core.</summary>
         public TimeSpan PrivilegedProcessorTime
         {
             get
             {
-                // TODO: Implement this
-                throw NotImplemented.ByDesign;
+                Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
+                return new TimeSpan(Convert.ToInt64(info.ri_system_time));
             }
         }
 
@@ -20,8 +52,13 @@ namespace System.Diagnostics
         {
             get
             {
-                // TODO: Implement this
-                throw NotImplemented.ByDesign;
+                // Get the RUsage data and convert the process start time (which is the number of
+                // nanoseconds before Now that the process started) to a DateTime.
+                DateTime now = DateTime.UtcNow;
+                Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
+                int milliseconds = Convert.ToInt32(info.ri_proc_start_abstime / MillisecondFactor);
+                TimeSpan ts = new TimeSpan(0, 0, 0, 0, milliseconds);
+                return now.Subtract(ts).ToLocalTime();
             }
         }
 
@@ -34,8 +71,8 @@ namespace System.Diagnostics
         {
             get
             {
-                // TODO: Implement this
-                throw NotImplemented.ByDesign;
+                Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
+                return new TimeSpan(Convert.ToInt64(info.ri_system_time + info.ri_user_time));
             }
         }
 
@@ -47,8 +84,8 @@ namespace System.Diagnostics
         {
             get
             {
-                // TODO: Implement this
-                throw NotImplemented.ByDesign;
+                Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
+                return new TimeSpan(Convert.ToInt64(info.ri_user_time));
             }
         }
 
@@ -59,13 +96,11 @@ namespace System.Diagnostics
         {
             get
             {
-                // TODO: Implement this
-                throw NotImplemented.ByDesign;
+                throw new PlatformNotSupportedException(SR.ProcessorAffinityNotSupported);
             }
             set
             {
-                // TODO: Implement this
-                throw NotImplemented.ByDesign;
+                throw new PlatformNotSupportedException(SR.ProcessorAffinityNotSupported);
             }
         }
 
@@ -75,8 +110,26 @@ namespace System.Diagnostics
         /// </summary>
         private void GetWorkingSetLimits(out IntPtr minWorkingSet, out IntPtr maxWorkingSet)
         {
-            // TODO: Implement this
-            throw NotImplemented.ByDesign;
+            // We can only do this for the current process on OS X
+            if (_processId != Interop.Sys.GetPid())
+                throw new PlatformNotSupportedException(SR.OsxExternalProcessWorkingSetNotSupported);
+
+            // Minimum working set (or resident set, as it is called on *nix) doesn't exist so set to 0
+            minWorkingSet = IntPtr.Zero;
+
+            // Get the max working set size
+            Interop.Sys.RLimit limit;
+            if (Interop.Sys.GetRLimit(Interop.Sys.RlimitResources.RLIMIT_RSS, out limit) == 0)
+            {
+                maxWorkingSet = limit.CurrentLimit == Interop.Sys.RLIM_INFINITY ?
+                    new IntPtr(Int64.MaxValue) :
+                    new IntPtr(Convert.ToInt64(limit.CurrentLimit));
+            }
+            else
+            {
+                // The contract specifies that this throws Win32Exception when it failes to retrieve the info
+                throw new Win32Exception();
+            }
         }
 
         /// <summary>Sets one or both of the minimum and maximum working set limits.</summary>
@@ -86,8 +139,35 @@ namespace System.Diagnostics
         /// <param name="resultingMax">The resulting maximum working set limit after any changes applied.</param>
         private void SetWorkingSetLimitsCore(IntPtr? newMin, IntPtr? newMax, out IntPtr resultingMin, out IntPtr resultingMax)
         {
-            // TODO: Implement this
-            throw NotImplemented.ByDesign;
+            // We can only do this for the current process on OS X
+            if (_processId != Interop.Sys.GetPid())
+                throw new PlatformNotSupportedException(SR.OsxExternalProcessWorkingSetNotSupported);
+
+            // There isn't a way to set the minimum working set, so throw an exception here
+            if (newMin.HasValue)
+            {
+                throw new PlatformNotSupportedException(SR.MinimumWorkingSetNotSupported);
+            }
+
+            // The minimum resident set will always be 0, default the resulting max to 0 until we set it (to make the compiler happy)
+            resultingMin = IntPtr.Zero;
+            resultingMax = IntPtr.Zero;
+
+            // The default hard upper limit is absurdly high (over 9000PB) so just change the soft limit...especially since
+            // if you aren't root and move the upper limit down, you need root to move it back up
+            if (newMax.HasValue)
+            {
+                Interop.Sys.RLimit limits = new Interop.Sys.RLimit() { CurrentLimit = (ulong)newMax.Value.ToInt64() };
+                int result = Interop.Sys.SetRLimit(Interop.Sys.RlimitResources.RLIMIT_RSS, ref limits);
+                if (result != 0)
+                {
+                    throw new System.ComponentModel.Win32Exception(SR.RUsageFailure);
+                }
+
+                // Try to grab the actual value, in case the OS decides to fudge the numbers
+                result = Interop.Sys.GetRLimit(Interop.Sys.RlimitResources.RLIMIT_RSS, out limits);
+                if (result == 0) resultingMax = new IntPtr((long)limits.CurrentLimit);
+            }
         }
 
         // -----------------------------
@@ -97,13 +177,21 @@ namespace System.Diagnostics
         /// <summary>Gets the path to the current executable, or null if it could not be retrieved.</summary>
         private static string GetExePath()
         {
-            // TODO: Implement this
-            throw NotImplemented.ByDesign;
+            return Interop.libproc.proc_pidpath(Interop.Sys.GetPid());
         }
 
         // ----------------------------------
         // ---- Unix PAL layer ends here ----
         // ----------------------------------
+
+        // The ri_proc_start_abstime needs to be converted to milliseconds to determine
+        // the actual start time of the process.
+        private const ulong MillisecondFactor = 100000000000;
+
+        private Interop.libproc.rusage_info_v3 GetCurrentProcessRUsage()
+        {
+            return Interop.libproc.proc_pid_rusage(Interop.Sys.GetPid());
+        }
 
     }
 }

@@ -12,21 +12,15 @@ using System.Diagnostics.Contracts;
 
 namespace System.IO
 {
-    public abstract class FileSystemInfo
+    public abstract partial class FileSystemInfo
     {
         protected String FullPath;          // fully qualified path of the file or directory
         protected String OriginalPath;      // path passed in by the user
         private String _displayPath = "";   // path that can be displayed to the user
-        private IFileSystemObject _fileSystemObject;  // backing implementation
 
         [System.Security.SecurityCritical]
         protected FileSystemInfo()
         {
-        }
-
-        internal FileSystemInfo(IFileSystemObject fileSystemObject)
-        {
-            _fileSystemObject = fileSystemObject;
         }
 
         // Full path of the directory/file
@@ -50,24 +44,10 @@ namespace System.IO
                     char ch = FullPath[i];
                     if (ch == '.')
                         return FullPath.Substring(i, length - i);
-                    if (PathHelpers.IsDirectorySeparator(ch) || ch == Path.VolumeSeparatorChar)
+                    if (PathInternal.IsDirectorySeparator(ch) || ch == Path.VolumeSeparatorChar)
                         break;
                 }
                 return String.Empty;
-            }
-        }
-
-        // Lazy accessor for backing implementation
-        internal IFileSystemObject FileSystemObject
-        {
-            get
-            {
-                if (_fileSystemObject == null)
-                {
-                    _fileSystemObject = FileSystem.Current.GetFileSystemInfo(FullPath, this is DirectoryInfo);
-                }
-
-                return _fileSystemObject;
             }
         }
 
@@ -199,11 +179,6 @@ namespace System.IO
             {
                 _displayPath = value;
             }
-        }
-
-        internal void Invalidate()
-        {
-            _fileSystemObject = null;
         }
     }
 }

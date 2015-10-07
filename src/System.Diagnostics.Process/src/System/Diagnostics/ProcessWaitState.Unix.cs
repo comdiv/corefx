@@ -287,20 +287,20 @@ namespace System.Diagnostics
             {
                 // Try to get the state of the (child) process
                 int status;
-                int waitResult = Interop.libc.waitpid(_processId, out status,
-                    blockingAllowed ? Interop.libc.WaitPidOptions.None : Interop.libc.WaitPidOptions.WNOHANG);
+                int waitResult = Interop.Sys.WaitPid(_processId, out status,
+                    blockingAllowed ? Interop.Sys.WaitPidOptions.None : Interop.Sys.WaitPidOptions.WNOHANG);
 
                 if (waitResult == _processId)
                 {
                     // Process has exited
-                    if (Interop.libc.WIFEXITED(status))
+                    if (Interop.Sys.WIfExited(status))
                     {
-                        _exitCode = Interop.libc.WEXITSTATUS(status);
+                        _exitCode = Interop.Sys.WExitStatus(status);
                     }
-                    else if (Interop.libc.WIFSIGNALED(status))
+                    else if (Interop.Sys.WIfSignaled(status))
                     {
                         const int ExitCodeSignalOffset = 128;
-                        _exitCode = ExitCodeSignalOffset + Interop.libc.WTERMSIG(status);
+                        _exitCode = ExitCodeSignalOffset + Interop.Sys.WTermSig(status);
                     }
                     SetExited();
                     return;
@@ -315,34 +315,36 @@ namespace System.Diagnostics
                     // Something went wrong, e.g. it's not a child process,
                     // or waitpid was already called for this child, or
                     // that the call was interrupted by a signal.
-                    int errno = Marshal.GetLastWin32Error();
-                    if (errno == Interop.Errors.EINTR)
+                    Interop.Error errno = Interop.Sys.GetLastError();
+                    if (errno == Interop.Error.EINTR)
                     {
                         // waitpid was interrupted. Try again.
                         continue;
                     }
-                    else if (errno == Interop.Errors.ECHILD)
+                    else if (errno == Interop.Error.ECHILD)
                     {
                         // waitpid was used with a non-child process.  We won't be
                         // able to get an exit code, but we'll at least be able 
                         // to determine if the process is still running (assuming
                         // there's not a race on its id).
-                        int killResult = Interop.libc.kill(_processId, 0); // 0 means don't send a signal
+                        int killResult = Interop.Sys.Kill(_processId, Interop.Sys.Signals.None); // None means don't send a signal
                         if (killResult == 0)
                         {
-                            // Process is still running
+                            // Process is still running.  This could also be a defunct process that has completed
+                            // its work but still has an entry in the processes table due to its parent not yet
+                            // having waited on it to clean it up.
                             return;
                         }
                         else // error from kill
                         {
-                            errno = Marshal.GetLastWin32Error();
-                            if (errno == Interop.Errors.ESRCH)
+                            errno = Interop.Sys.GetLastError();
+                            if (errno == Interop.Error.ESRCH)
                             {
                                 // Couldn't find the process; assume it's exited
                                 SetExited();
                                 return;
                             }
-                            else if (errno == Interop.Errors.EPERM)
+                            else if (errno == Interop.Error.EPERM)
                             {
                                 // Don't have permissions to the process; assume it's alive
                                 return;
@@ -367,7 +369,7 @@ namespace System.Diagnostics
             Debug.Assert(!Monitor.IsEntered(_gate));
 
             // Track the time the we start waiting.
-            long startTime = GetTimestamp();
+            long startTime = Stopwatch.GetTimestamp();
 
             // Polling loop
             while (true)
@@ -379,7 +381,7 @@ namespace System.Diagnostics
                 // We're in a polling loop... determine how much time remains
                 int remainingTimeout = millisecondsTimeout == Timeout.Infinite ?
                     Timeout.Infinite :
-                    (int)Math.Max(millisecondsTimeout - (GetTimestamp() - startTime), 0);
+                    (int)Math.Max(millisecondsTimeout - ((Stopwatch.GetTimestamp() - startTime) / (double)Stopwatch.Frequency * 1000), 0);
 
                 lock (_gate)
                 {
@@ -509,12 +511,6 @@ namespace System.Diagnostics
                     }
                 }
             });
-        }
-
-        /// <summary>Gets a current time stamp.</summary>
-        private static long GetTimestamp()
-        {
-            return Stopwatch.GetTimestamp();
         }
 
     }

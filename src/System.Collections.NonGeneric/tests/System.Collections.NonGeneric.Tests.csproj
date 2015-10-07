@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
@@ -8,8 +8,11 @@
     <RootNamespace>System.Collections.NonGeneric.Tests</RootNamespace>
     <AssemblyName>System.Collections.NonGeneric.Tests</AssemblyName>
     <ProjectGuid>{EE95AE39-845A-42D3-86D0-8065DBE56612}</ProjectGuid>
-    <TestCategories>InnerLoop;OuterLoop</TestCategories>
-    <UnsupportedOperatingSystems>Linux</UnsupportedOperatingSystems>
+  </PropertyGroup>
+  <!-- Performance tests require v5.0 portable tools -->
+  <PropertyGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -91,6 +94,7 @@
     <Compile Include="Hashtable\PropertyValuesTests.cs" />
     <Compile Include="Hashtable\RemoveTests.cs" />
     <Compile Include="Hashtable\SynchronizedTests.cs" />
+    <Compile Include="Queue\Queue_Clear.cs" />
     <Compile Include="Queue\Queue_Clone.cs" />
     <Compile Include="Queue\Queue_Contains.cs" />
     <Compile Include="Queue\Queue_ctor.cs" />
@@ -143,21 +147,25 @@
     <Compile Include="Stack\Stack_Contains_obj.cs" />
     <Compile Include="Stack\Stack_get_SyncRoot.cs" />
     <Compile Include="Stack\Stack_ToArray.cs" />
+    <Compile Include="XunitAssemblyAttributes.cs" />
     <Compile Include="$(CommonTestPath)\System\Diagnostics\DebuggerAttributes.cs">
       <Link>Common\System\Diagnostics\DebuggerAttributes.cs</Link>
     </Compile>
   </ItemGroup>
+  <!-- Performance Tests -->
+  <ItemGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <Compile Include="Performance\Perf.HashTable.cs" />
+    <Compile Include="$(CommonTestPath)\Performance\PerfUtils.cs">
+      <Link>Common\Performance\PerfUtils.cs</Link>
+    </Compile>
+  </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj">
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project>
-      <Name>XunitTraitsDiscoverers</Name>
-    </ProjectReference>
     <ProjectReference Include="..\src\System.Collections.NonGeneric.csproj">
       <Name>System.Collections.NonGeneric</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

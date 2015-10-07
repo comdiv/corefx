@@ -26,7 +26,8 @@ namespace System.IO.MemoryMappedFiles
             // extra memory we allocate before the start of the requested view. MapViewOfFile will also round the 
             // capacity of the view to the nearest multiple of the system page size.  Once again, we hide this 
             // from the user by preventing them from writing to any memory that they did not request.
-            ulong nativeSize, extraMemNeeded, newOffset;
+            ulong nativeSize;
+            long extraMemNeeded, newOffset;
             ValidateSizeAndOffset(
                 size, offset, GetSystemPageAllocationGranularity(), 
                 out nativeSize, out extraMemNeeded, out newOffset);
@@ -69,10 +70,11 @@ namespace System.IO.MemoryMappedFiles
             // This is because, VirtualQuery function(that internally invokes VirtualQueryEx function) returns the attributes 
             // and size of the region of pages with matching attributes starting from base address.
             // VirtualQueryEx: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366907(v=vs.85).aspx
-            if (((viewInfo.State & Interop.mincore.MemOptions.MEM_RESERVE) != 0) || (viewSize < nativeSize))
+            if (((viewInfo.State & Interop.mincore.MemOptions.MEM_RESERVE) != 0) || ((ulong)viewSize < (ulong)nativeSize))
             {
-                IntPtr tempHandle = Interop.mincore.VirtualAlloc(viewHandle, (UIntPtr)nativeSize, Interop.mincore.MemOptions.MEM_COMMIT,
-                                                        MemoryMappedFile.GetPageAccess(access));
+                IntPtr tempHandle = Interop.mincore.VirtualAlloc(
+                    viewHandle, (UIntPtr)(nativeSize != MemoryMappedFile.DefaultSize ? nativeSize : viewSize), 
+                    Interop.mincore.MemOptions.MEM_COMMIT, MemoryMappedFile.GetPageAccess(access));
                 int lastError = Marshal.GetLastWin32Error();
                 if (viewHandle.IsInvalid)
                 {
@@ -87,15 +89,15 @@ namespace System.IO.MemoryMappedFiles
             // if the user specified DefaultSize as the size, we need to get the actual size
             if (size == MemoryMappedFile.DefaultSize)
             {
-                size = (long)(viewSize - extraMemNeeded);
+                size = (long)(viewSize - (ulong)extraMemNeeded);
             }
             else
             {
                 Debug.Assert(viewSize >= (ulong)size, "viewSize < size");
             }
 
-            viewHandle.Initialize((ulong)size + extraMemNeeded);
-            return new MemoryMappedView(viewHandle, (long)extraMemNeeded, size, access);
+            viewHandle.Initialize((ulong)size + (ulong)extraMemNeeded);
+            return new MemoryMappedView(viewHandle, extraMemNeeded, size, access);
         }
 
         // Flushes the changes such that they are in sync with the FileStream bits (ones obtained
@@ -106,57 +108,54 @@ namespace System.IO.MemoryMappedFiles
         [SecurityCritical]
         public void Flush(UIntPtr capacity)
         {
-            if (_viewHandle != null)
+            unsafe
             {
-                unsafe
+                byte* firstPagePtr = null;
+                try
                 {
-                    byte* firstPagePtr = null;
-                    try
+                    _viewHandle.AcquirePointer(ref firstPagePtr);
+
+                    bool success = Interop.mincore.FlushViewOfFile((IntPtr)firstPagePtr, capacity) != 0;
+                    if (success)
+                        return; // This will visit the finally block.
+
+                    // It is a known issue within the NTFS transaction log system that
+                    // causes FlushViewOfFile to intermittently fail with ERROR_LOCK_VIOLATION
+                    // As a workaround, we catch this particular error and retry the flush operation 
+                    // a few milliseconds later. If it does not work, we give it a few more tries with
+                    // increasing intervals. Eventually, however, we need to give up. In ad-hoc tests
+                    // this strategy successfully flushed the view after no more than 3 retries.
+
+                    int error = Marshal.GetLastWin32Error();
+                    bool canRetry = (!success && error == Interop.mincore.Errors.ERROR_LOCK_VIOLATION);
+
+                    SpinWait spinWait = new SpinWait();
+                    for (int w = 0; canRetry && w < MaxFlushWaits; w++)
                     {
-                        _viewHandle.AcquirePointer(ref firstPagePtr);
+                        int pause = (1 << w);  // MaxFlushRetries should never be over 30
+                        MemoryMappedFile.ThreadSleep(pause);
 
-                        bool success = Interop.mincore.FlushViewOfFile((IntPtr)firstPagePtr, capacity) != 0;
-                        if (success)
-                            return; // This will visit the finally block.
-
-                        // It is a known issue within the NTFS transaction log system that
-                        // causes FlushViewOfFile to intermittently fail with ERROR_LOCK_VIOLATION
-                        // As a workaround, we catch this particular error and retry the flush operation 
-                        // a few milliseconds later. If it does not work, we give it a few more tries with
-                        // increasing intervals. Eventually, however, we need to give up. In ad-hoc tests
-                        // this strategy successfully flushed the view after no more than 3 retries.
-
-                        int error = Marshal.GetLastWin32Error();
-                        bool canRetry = (!success && error == Interop.mincore.Errors.ERROR_LOCK_VIOLATION);
-
-                        SpinWait spinWait = new SpinWait();
-                        for (int w = 0; canRetry && w < MaxFlushWaits; w++)
+                        for (int r = 0; canRetry && r < MaxFlushRetriesPerWait; r++)
                         {
-                            int pause = (1 << w);  // MaxFlushRetries should never be over 30
-                            MemoryMappedFile.ThreadSleep(pause);
+                            success = Interop.mincore.FlushViewOfFile((IntPtr)firstPagePtr, capacity) != 0;
+                            if (success)
+                                return; // This will visit the finally block.
 
-                            for (int r = 0; canRetry && r < MaxFlushRetriesPerWait; r++)
-                            {
-                                success = Interop.mincore.FlushViewOfFile((IntPtr)firstPagePtr, capacity) != 0;
-                                if (success)
-                                    return; // This will visit the finally block.
+                            spinWait.SpinOnce();
 
-                                spinWait.SpinOnce();
-
-                                error = Marshal.GetLastWin32Error();
-                                canRetry = (error == Interop.mincore.Errors.ERROR_LOCK_VIOLATION);
-                            }
+                            error = Marshal.GetLastWin32Error();
+                            canRetry = (error == Interop.mincore.Errors.ERROR_LOCK_VIOLATION);
                         }
-
-                        // We got to here, so there was no success:
-                        throw Win32Marshal.GetExceptionForWin32Error(error);
                     }
-                    finally
+
+                    // We got to here, so there was no success:
+                    throw Win32Marshal.GetExceptionForWin32Error(error);
+                }
+                finally
+                {
+                    if (firstPagePtr != null)
                     {
-                        if (firstPagePtr != null)
-                        {
-                            _viewHandle.ReleasePointer();
-                        }
+                        _viewHandle.ReleasePointer();
                     }
                 }
             }

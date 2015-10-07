@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class FileStream_ctor_str_fm : FileSystemTest
     {
@@ -17,13 +17,13 @@ namespace System.IO.FileSystem.Tests
         [Fact]
         public void NullPathThrows()
         {
-            Assert.Throws<ArgumentNullException>("path", () => CreateFileStream(null, FileMode.Open));
+            Assert.Throws<ArgumentNullException>(() => CreateFileStream(null, FileMode.Open));
         }
 
         [Fact]
         public void EmptyPathThrows()
         {
-            Assert.Throws<ArgumentException>("path", () => CreateFileStream(String.Empty, FileMode.Open));
+            Assert.Throws<ArgumentException>(() => CreateFileStream(String.Empty, FileMode.Open));
         }
 
         [Fact]

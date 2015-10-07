@@ -5,7 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection.Metadata.Ecma335;
-using System.Runtime.CompilerServices;
 
 namespace System.Reflection.Metadata
 {
@@ -37,17 +36,11 @@ namespace System.Reflection.Metadata
             {
                 if (index < 0 || index >= _count)
                 {
-                    ThrowIndexOutOfRange();
+                    Throw.IndexOutOfRange();
                 }
 
-                return GenericParameterHandle.FromRowId((uint)(_firstRowId + index));
+                return GenericParameterHandle.FromRowId(_firstRowId + index);
             }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowIndexOutOfRange()
-        {
-            throw new ArgumentOutOfRangeException("index");
         }
 
         public Enumerator GetEnumerator()
@@ -87,7 +80,7 @@ namespace System.Reflection.Metadata
                 get
                 {
                     // PERF: keep this code small to enable inlining.
-                    return GenericParameterHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return GenericParameterHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -151,17 +144,11 @@ namespace System.Reflection.Metadata
             {
                 if (index < 0 || index >= _count)
                 {
-                    ThrowIndexOutOfRange();
+                    Throw.IndexOutOfRange();
                 }
 
-                return GenericParameterConstraintHandle.FromRowId((uint)(_firstRowId + index));
+                return GenericParameterConstraintHandle.FromRowId(_firstRowId + index);
             }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowIndexOutOfRange()
-        {
-            throw new ArgumentOutOfRangeException("index");
         }
 
         public Enumerator GetEnumerator()
@@ -201,7 +188,7 @@ namespace System.Reflection.Metadata
                 get
                 {
                     // PERF: keep this code small to enable inlining.
-                    return GenericParameterConstraintHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return GenericParameterConstraintHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -252,7 +239,7 @@ namespace System.Reflection.Metadata
             _lastRowId = (int)reader.CustomAttributeTable.NumberOfRows;
         }
 
-        internal CustomAttributeHandleCollection(MetadataReader reader, Handle handle)
+        internal CustomAttributeHandleCollection(MetadataReader reader, EntityHandle handle)
         {
             Debug.Assert(reader != null);
             Debug.Assert(!handle.IsNil);
@@ -315,7 +302,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return CustomAttributeHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return CustomAttributeHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -373,7 +360,7 @@ namespace System.Reflection.Metadata
             _lastRowId = (int)reader.DeclSecurityTable.NumberOfRows;
         }
 
-        internal DeclarativeSecurityAttributeHandleCollection(MetadataReader reader, Handle handle)
+        internal DeclarativeSecurityAttributeHandleCollection(MetadataReader reader, EntityHandle handle)
         {
             Debug.Assert(reader != null);
             Debug.Assert(!handle.IsNil);
@@ -429,7 +416,7 @@ namespace System.Reflection.Metadata
                 get
                 {
                     // PERF: keep this code small to enable inlining.
-                    return DeclarativeSecurityAttributeHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return DeclarativeSecurityAttributeHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -543,7 +530,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return MethodDefinitionHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return MethodDefinitionHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -663,7 +650,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return FieldDefinitionHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return FieldDefinitionHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -783,7 +770,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return PropertyDefinitionHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return PropertyDefinitionHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -903,7 +890,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return EventDefinitionHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return EventDefinitionHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -1009,7 +996,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return MethodImplementationHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return MethodImplementationHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1118,7 +1105,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return ParameterHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return ParameterHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -1222,7 +1209,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return InterfaceImplementationHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return InterfaceImplementationHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1312,7 +1299,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return TypeDefinitionHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return TypeDefinitionHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1402,7 +1389,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return TypeReferenceHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return TypeReferenceHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1492,7 +1479,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return ExportedTypeHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return ExportedTypeHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1582,7 +1569,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return MemberReferenceHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return MemberReferenceHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1622,13 +1609,13 @@ namespace System.Reflection.Metadata
     {
         // Workaround: JIT doesn't generate good code for nested structures, so use uints.
 
-        private readonly uint _getterRowId;
-        private readonly uint _setterRowId;
+        private readonly int _getterRowId;
+        private readonly int _setterRowId;
 
         public MethodDefinitionHandle Getter { get { return MethodDefinitionHandle.FromRowId(_getterRowId); } }
         public MethodDefinitionHandle Setter { get { return MethodDefinitionHandle.FromRowId(_setterRowId); } }
 
-        internal PropertyAccessors(uint getterRowId, uint setterRowId)
+        internal PropertyAccessors(int getterRowId, int setterRowId)
         {
             _getterRowId = getterRowId;
             _setterRowId = setterRowId;
@@ -1639,15 +1626,15 @@ namespace System.Reflection.Metadata
     {
         // Workaround: JIT doesn't generate good code for nested structures, so use uints.
 
-        private readonly uint _adderRowId;
-        private readonly uint _removerRowId;
-        private readonly uint _raiserRowId;
+        private readonly int _adderRowId;
+        private readonly int _removerRowId;
+        private readonly int _raiserRowId;
 
         public MethodDefinitionHandle Adder { get { return MethodDefinitionHandle.FromRowId(_adderRowId); } }
         public MethodDefinitionHandle Remover { get { return MethodDefinitionHandle.FromRowId(_removerRowId); } }
         public MethodDefinitionHandle Raiser { get { return MethodDefinitionHandle.FromRowId(_raiserRowId); } }
 
-        internal EventAccessors(uint adderRowId, uint removerRowId, uint raiserRowId)
+        internal EventAccessors(int adderRowId, int removerRowId, int raiserRowId)
         {
             _adderRowId = adderRowId;
             _removerRowId = removerRowId;
@@ -1726,7 +1713,7 @@ namespace System.Reflection.Metadata
                     }
                     else
                     {
-                        return AssemblyReferenceHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                        return AssemblyReferenceHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                     }
                 }
             }
@@ -1820,7 +1807,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return ManifestResourceHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return ManifestResourceHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 
@@ -1910,7 +1897,7 @@ namespace System.Reflection.Metadata
             {
                 get
                 {
-                    return AssemblyFileHandle.FromRowId((uint)_currentRowId & TokenTypeIds.RIDMask);
+                    return AssemblyFileHandle.FromRowId((int)(_currentRowId & TokenTypeIds.RIDMask));
                 }
             }
 

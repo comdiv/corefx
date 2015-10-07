@@ -1,3 +1,6 @@
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System;
 using System.Security;
 
@@ -13,7 +16,7 @@ namespace System.Diagnostics
             set { throw new PlatformNotSupportedException(); }
         }
 
-        public SecureString Password
+        public string PasswordInClearText
         {
             get { throw new PlatformNotSupportedException(); }
             set { throw new PlatformNotSupportedException(); }

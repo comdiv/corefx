@@ -4,6 +4,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -181,17 +182,8 @@ namespace Tests
         [Fact]
         public static void Contains_SourceNull()
         {
-            try
-            {
-                IEnumerable<string> source = null;
-                string value = null;
-
-                source.Contains(value);
-                Assert.False(true);
-            }
-            catch (ArgumentNullException)
-            {
-            }
+            IEnumerable<string> source = null;
+            Assert.Throws<ArgumentNullException>("source", () => source.Contains(null));
         }
 
         public static IEnumerable<string> Contains_Source1()
@@ -457,66 +449,31 @@ namespace Tests
         [Fact]
         public static void RangeNegativeCount()
         {
-            try
-            {
-                Enumerable.Range(0, -1).ToList();
-                Assert.False(true);
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-            }
+            Assert.Throws<ArgumentOutOfRangeException>("count", () => Enumerable.Range(0, -1));
         }
 
         [Fact]
         public static void MaxEmpty()
         {
-            try
-            {
-                Enumerable.Empty<int>().Max();
-                Assert.False(true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            Assert.Throws<InvalidOperationException>(() => Enumerable.Empty<int>().Max());
         }
 
         [Fact]
         public static void MinEmpty()
         {
-            try
-            {
-                Enumerable.Empty<int>().Min();
-                Assert.False(true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            Assert.Throws<InvalidOperationException>(() => Enumerable.Empty<int>().Min());
         }
 
         [Fact]
         public static void MaxNullSource()
         {
-            try
-            {
-                Enumerable.Max((IEnumerable<int>)null);
-                Assert.False(true);
-            }
-            catch (ArgumentNullException)
-            {
-            }
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Max());
         }
 
         [Fact]
         public static void MinNullSource()
         {
-            try
-            {
-                Enumerable.Min((IEnumerable<int>)null);
-                Assert.False(true);
-            }
-            catch (ArgumentNullException)
-            {
-            }
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Min());
         }
 
         [Fact]
@@ -701,24 +658,10 @@ namespace Tests
             ConstantExpression init1 = Expression.Constant(4, typeof(int));
             Expression[] inits = new Expression[] { null, init1 };
 
-            try
-            {
-                ListInitExpression result = Expression.ListInit(newExpr, inits);
-            }
-            catch (ArgumentNullException ane)
-            {
-                Assert.Equal("argument", ane.ParamName);
-            }
+            Assert.Throws<ArgumentNullException>("argument", () => Expression.ListInit(newExpr, inits));
 
             ElementInit[] einits = new ElementInit[] { };
-            try
-            {
-                ListInitExpression result1 = Expression.ListInit(newExpr, einits);
-            }
-            catch (ArgumentException e)
-            {
-                Assert.Equal(typeof(Expression).GetTypeInfo().Assembly.GetName().Name, e.Source);
-            }
+            Assert.Throws<ArgumentException>(() => Expression.ListInit(newExpr, einits));
         }
 
         public void Add(ref int i)
@@ -731,14 +674,7 @@ namespace Tests
             MethodInfo mi1 = typeof(Expression_Tests).GetMethod("Add");
             ConstantExpression ce1 = Expression.Constant(4, typeof(int));
 
-            try
-            {
-                ElementInit ei1 = Expression.ElementInit(mi1, new Expression[] { ce1 });
-            }
-            catch (ArgumentException e)
-            {
-                Assert.Equal(typeof(Expression).GetTypeInfo().Assembly.GetName().Name, e.Source);
-            }
+            Assert.Throws<ArgumentException>(() => Expression.ElementInit(mi1, new Expression[] { ce1 }));
         }
 
         public class Atom
@@ -765,14 +701,9 @@ namespace Tests
         [Fact]
         public static void EqualityBetweenStructAndIterfaceFails()
         {
-            try
-            {
-                Expression.Equal(Expression.Constant(5), Expression.Constant(null, typeof(IComparable)));
-                Assert.False(true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            Expression expStruct = Expression.Constant(5);
+            Expression expIface = Expression.Constant(null, typeof(IComparable));
+            Assert.Throws<InvalidOperationException>(() => Expression.Equal(expStruct, expIface));
         }
 
         [Fact]
@@ -890,14 +821,7 @@ namespace Tests
         [Fact]
         public static void ConstantNullWithValueTypeIsInvalid()
         {
-            try
-            {
-                Expression.Constant(null, typeof(int));
-                Assert.False(true);
-            }
-            catch (ArgumentException)
-            {
-            }
+            Assert.Throws<ArgumentException>(() => Expression.Constant(null, typeof(int)));
         }
 
         [Fact]
@@ -1115,6 +1039,7 @@ namespace Tests
 
         public static void AssertIsCoercion(UnaryExpression u, string opName, Type expected)
         {
+            Debug.WriteLine("Convert: {0} -> {1}", u.Operand.Type, u.Type);
             Assert.NotNull(u.Method);
             Assert.Equal(opName, u.Method.Name);
             Assert.Equal(expected, u.Type);
@@ -1176,27 +1101,13 @@ namespace Tests
         [Fact]
         public static void TestGetFuncTypeWithNullFails()
         {
-            try
-            {
-                Expression.GetFuncType(null);
-                Assert.False(true);
-            }
-            catch (ArgumentNullException)
-            {
-            }
+            Assert.Throws<ArgumentNullException>("typeArgs", () => Expression.GetFuncType(null));
         }
 
         [Fact]
         public static void TestGetFuncTypeWithTooManyArgsFails()
         {
-            try
-            {
-                Expression.GetFuncType(new Type[] { typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int) });
-                Assert.False(true);
-            }
-            catch (ArgumentException)
-            {
-            }
+            Assert.Throws<ArgumentException>(() => Expression.GetFuncType(new Type[] { typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int) }));
         }
 
         [Fact]
@@ -1382,7 +1293,7 @@ namespace Tests
             var s = q.ToString();
         }
 
-        [Fact(Skip = "Bug 1092311")]
+        [Fact]
         public static void DynamicSequenceQuery()
         {
             ParameterExpression i = Expression.Parameter(typeof(int[]), "i");
@@ -1390,7 +1301,7 @@ namespace Tests
                   Expression.Convert(
                     Expression.Call(
                        null,
-                       typeof(Queryable).GetMethod("AsQueryable", new[] { typeof(IEnumerable<int>) }),
+                       typeof(Queryable).GetMethod("AsQueryable", new[] { typeof(IEnumerable) }),
                        new Expression[] {
                         Expression.Convert(i, typeof(IEnumerable<int>))
                         }
@@ -1400,8 +1311,11 @@ namespace Tests
                     new ParameterExpression[] { i }
                   );
 
-            int[] input = new[] { 1, 2, 3 };
-            Assert.Equal(input, e.Compile()(input));
+            string result = "";
+            foreach (var x in e.Compile()(new[] { 1, 2, 3 }))
+                result += ", " + x.ToString();
+
+            Assert.Equal(", 1, 2, 3", result);
         }
 
         [Fact(Skip = "870811")]
@@ -1759,7 +1673,16 @@ namespace Tests
                      "LeftJoin"
                  }
                 ).ToList();
-            Assert.Equal(0, list.Count);
+
+            if (list.Count > 0)
+            {
+                Console.WriteLine("Enumerable methods not defined by Queryable\n");
+                foreach (MethodInfo m in list)
+                {
+                    Console.WriteLine(m);
+                }
+                Console.WriteLine();
+            }
 
             List<MethodInfo> list2 = GetMissingExtensionMethods(
                 typeof(System.Linq.Queryable),
@@ -1768,7 +1691,18 @@ namespace Tests
                      "AsQueryable"
                  }
                 ).ToList();
-            Assert.Equal(0, list2.Count);
+
+            if (list2.Count > 0)
+            {
+                Console.WriteLine("Queryable methods not defined by Enumerable\n");
+                foreach (MethodInfo m in list2)
+                {
+                    Console.WriteLine(m);
+                }
+            }
+            Assert.Equal(Enumerable.Empty<string>(), list.Select(mi => mi.Name));
+            Assert.Equal(Enumerable.Empty<string>(), list2.Select(mi => mi.Name));
+            Assert.True(list.Count == 0 && list2.Count == 0);
         }
 
         private static IEnumerable<MethodInfo> GetMissingExtensionMethods(Type a, Type b, string[] excludedMethods)
@@ -1972,14 +1906,8 @@ namespace Tests
             Assert.NotNull(f2());
             Assert.Equal(f2().Value.Name, "lhs");
 
-            try
-            {
-                Expression<Func<double?>> e = Expression.Lambda<Func<double?>>(Expression.Constant(1.0, typeof(double)), null);
-            }
-            catch (ArgumentException e)
-            {
-                Assert.Equal(typeof(Expression).GetTypeInfo().Assembly.GetName().Name, e.Source);
-            }
+            var constant = Expression.Constant(1.0, typeof(double));
+            Assert.Throws<ArgumentException>(() => Expression.Lambda<Func<double?>>(constant, null));
         }
 
         public static int GetBound()
@@ -2105,24 +2033,23 @@ namespace Tests
             ConstantExpression ce = Expression.Constant((UInt16)10);
 
             UnaryExpression result = Expression.UnaryPlus(ce);
+
             Assert.Throws<InvalidOperationException>(() =>
             {
-                //unaru Plus Operator
+                //unary Plus Operator
                 byte val = 10;
                 Expression<Func<byte>> e =
-                Expression.Lambda<Func<byte>>(
-                    Expression.UnaryPlus(Expression.Constant(val, typeof(byte))),
-                    Enumerable.Empty<ParameterExpression>());
-                Func<byte> f = e.Compile();
+                    Expression.Lambda<Func<byte>>(
+                        Expression.UnaryPlus(Expression.Constant(val, typeof(byte))),
+                        Enumerable.Empty<ParameterExpression>());
             });
 
             //Userdefined objects
-
             Complex comp = new Complex(10, 20);
             Expression<Func<Complex>> e1 =
-            Expression.Lambda<Func<Complex>>(
-                Expression.UnaryPlus(Expression.Constant(comp, typeof(Complex))),
-                Enumerable.Empty<ParameterExpression>());
+                Expression.Lambda<Func<Complex>>(
+                    Expression.UnaryPlus(Expression.Constant(comp, typeof(Complex))),
+                    Enumerable.Empty<ParameterExpression>());
             Func<Complex> f1 = e1.Compile();
             Complex comp1 = f1();
             Assert.True((comp1.x == comp.x + 1 && comp1.y == comp.y + 1));
@@ -2787,7 +2714,8 @@ namespace Tests
         {
             Expression<Func<decimal, int?, decimal?>> e = (d, i) => d + i;
             var f = e.Compile();
-            Assert.Equal(5.0m, f(1.0m, 4));
+            var result = f(1.0m, 4);
+            Debug.WriteLine(result);
         }
 
         [Fact]
@@ -2807,7 +2735,9 @@ namespace Tests
                     Expression.Constant(null, typeof(int?)),
                     Expression.Constant(1, typeof(int?))
                     ));
-            Assert.False(f.Compile()().HasValue);
+
+            var result = f.Compile()();
+            Debug.WriteLine(result);
         }
 
         [Fact]
@@ -2852,6 +2782,7 @@ namespace Tests
         {
             Expression<Func<DateTime?, TimeSpan, DateTime?>> f = (x, y) => x + y;
             Assert.Equal(ExpressionType.Add, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime?, TimeSpan, DateTime?> d = f.Compile();
             DateTime? dt = DateTime.Now;
             TimeSpan ts = new TimeSpan(3, 2, 1);
@@ -2865,6 +2796,7 @@ namespace Tests
         {
             Expression<Func<DateTime?, TimeSpan?, DateTime?>> f = (x, y) => x + y;
             Assert.Equal(ExpressionType.Add, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime?, TimeSpan?, DateTime?> d = f.Compile();
             DateTime? dt = DateTime.Now;
             TimeSpan? ts = new TimeSpan(3, 2, 1);
@@ -2880,6 +2812,7 @@ namespace Tests
         {
             Expression<Func<DateTime?, DateTime?, TimeSpan?>> f = (x, y) => x - y;
             Assert.Equal(ExpressionType.Subtract, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime?, DateTime?, TimeSpan?> d = f.Compile();
             DateTime? dt1 = DateTime.Now;
             DateTime? dt2 = new DateTime(2006, 5, 1);
@@ -2895,6 +2828,7 @@ namespace Tests
         {
             Expression<Func<DateTime?, DateTime?, bool>> f = (x, y) => x == y;
             Assert.Equal(ExpressionType.Equal, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime?, DateTime?, bool> d = f.Compile();
             DateTime? dt1 = DateTime.Now;
             DateTime? dt2 = new DateTime(2006, 5, 1);
@@ -2910,6 +2844,7 @@ namespace Tests
         {
             Expression<Func<DateTime?, DateTime?, bool>> f = (x, y) => x != y;
             Assert.Equal(ExpressionType.NotEqual, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime?, DateTime?, bool> d = f.Compile();
             DateTime? dt1 = DateTime.Now;
             DateTime? dt2 = new DateTime(2006, 5, 1);
@@ -2925,6 +2860,7 @@ namespace Tests
         {
             Expression<Func<DateTime?, DateTime?, bool>> f = (x, y) => x < y;
             Assert.Equal(ExpressionType.LessThan, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime?, DateTime?, bool> d = f.Compile();
             DateTime? dt1 = DateTime.Now;
             DateTime? dt2 = new DateTime(2006, 5, 1);
@@ -2940,6 +2876,7 @@ namespace Tests
         {
             Expression<Func<DateTime, DateTime, bool>> f = (x, y) => x < y;
             Assert.Equal(ExpressionType.LessThan, f.Body.NodeType);
+            Debug.WriteLine(f);
             Func<DateTime, DateTime, bool> d = f.Compile();
             DateTime dt1 = DateTime.Now;
             DateTime dt2 = new DateTime(2006, 5, 1);
@@ -2955,6 +2892,26 @@ namespace Tests
             Expression<Func<int>> lambda = Expression.Lambda<Func<int>>(ie);
             Func<int> d = lambda.Compile();
             Assert.Equal(6, d());
+        }
+
+        [Fact]
+        public static void CallCompiledLambda()
+        {
+            Expression<Func<int, int>> f = x => x + 1;
+            var compiled = f.Compile();
+            Expression<Func<int>> lambda = () => compiled(5);
+            Func<int> d = lambda.Compile();
+            Assert.Equal(6, d());
+        }
+
+        [Fact]
+        public static void CallCompiledLambdaWithTypeMissing()
+        {
+            Expression<Func<object, bool>> f = x => x == Type.Missing;
+            var compiled = f.Compile();
+            Expression<Func<object, bool>> lambda = x => compiled(x);
+            Func<object, bool> d = lambda.Compile();
+            Assert.Equal(true, d(Type.Missing));
         }
 
         [Fact]
@@ -3015,15 +2972,8 @@ namespace Tests
         [Fact]
         public static void InvokeNonTypedLambdaFails()
         {
-            try
-            {
-                Expression call = Expression.Call(null, typeof(Compiler_Tests).GetMethod("ComputeDynamicLambda", BindingFlags.Static | BindingFlags.Public), new Expression[] { });
-                InvocationExpression ie = Expression.Invoke(call, null);
-                Assert.False(true);
-            }
-            catch (ArgumentException)
-            {
-            }
+            Expression call = Expression.Call(null, typeof(Compiler_Tests).GetMethod("ComputeDynamicLambda", BindingFlags.Static | BindingFlags.Public), new Expression[] { });
+            Assert.Throws<ArgumentException>(() => Expression.Invoke(call, null));
         }
 
         public static LambdaExpression ComputeDynamicLambda()
@@ -3034,15 +2984,8 @@ namespace Tests
         [Fact]
         public static void InvokeNonTypedDelegateFails()
         {
-            try
-            {
-                Expression call = Expression.Call(null, typeof(Compiler_Tests).GetMethod("ComputeDynamicDelegate", BindingFlags.Static | BindingFlags.Public), new Expression[] { });
-                InvocationExpression ie = Expression.Invoke(call, null);
-                Assert.False(true);
-            }
-            catch (ArgumentException)
-            {
-            }
+            Expression call = Expression.Call(null, typeof(Compiler_Tests).GetMethod("ComputeDynamicDelegate", BindingFlags.Static | BindingFlags.Public), new Expression[] { });
+            Assert.Throws<ArgumentException>(() => Expression.Invoke(call, null));
         }
 
         public static Delegate ComputeDynamicDelegate()
@@ -3375,7 +3318,8 @@ namespace Tests
 
 
         [Fact]
-        public void NewStructWithMemberListIntializer() {
+        public void NewStructWithMemberListIntializer()
+        {
             Expression<Func<int, StructX>> f =
                 v => new StructX { A = v, B = v + 1, Ys = { new ClassY { B = v + 2 } } };
             var d = f.Compile();
@@ -3387,7 +3331,8 @@ namespace Tests
         }
 
         [Fact]
-        public void NewStructWithStructMemberMemberIntializer() {
+        public void NewStructWithStructMemberMemberIntializer()
+        {
             Expression<Func<int, StructX>> f =
                 v => new StructX { A = v, B = v + 1, SY = new StructY { B = v + 2 } };
             var d = f.Compile();
@@ -3400,37 +3345,15 @@ namespace Tests
         [Fact]
         public static void StructStructMemberInitializationThroughPropertyThrowsException()
         {
-            try
-            {
-                Expression<Func<int, StructX>> f = GetExpressionTreeForMemberInitializationThroughProperty<StructX>();
-                var d = f.Compile();
-                StructX x = d(5);
-                Assert.Equal(5, x.A);
-                Assert.Equal(6, x.B);
-                Assert.Equal(7, x.SY.B);
-                Assert.False(true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            Expression<Func<int, StructX>> f = GetExpressionTreeForMemberInitializationThroughProperty<StructX>();
+            Assert.Throws<InvalidOperationException>(() => f.Compile());
         }
 
         [Fact]
         public static void ClassStructMemberInitializationThroughPropertyThrowsException()
         {
-            try
-            {
-                Expression<Func<int, ClassX>> f = GetExpressionTreeForMemberInitializationThroughProperty<ClassX>();
-                var d = f.Compile();
-                ClassX x = d(5);
-                Assert.Equal(5, x.A);
-                Assert.Equal(6, x.B);
-                Assert.Equal(7, x.SY.B);
-                Assert.False(true);
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            Expression<Func<int, ClassX>> f = GetExpressionTreeForMemberInitializationThroughProperty<ClassX>();
+            Assert.Throws<InvalidOperationException>(() => f.Compile());
         }
 
 
@@ -3564,14 +3487,14 @@ namespace Tests
         [Fact]
         public static void MultiplyMinInt()
         {
-            Func<long> f = Expression.Lambda<Func<long>>(
-              Expression.MultiplyChecked(
-                Expression.Constant((long)-1, typeof(long)),
-                Expression.Constant(long.MinValue, typeof(long))),
-                Enumerable.Empty<ParameterExpression>()
-                ).Compile();
             Assert.Throws<OverflowException>(() =>
             {
+                Func<long> f = Expression.Lambda<Func<long>>(
+                  Expression.MultiplyChecked(
+                    Expression.Constant((long)-1, typeof(long)),
+                    Expression.Constant(long.MinValue, typeof(long))),
+                    Enumerable.Empty<ParameterExpression>()
+                    ).Compile();
                 f();
             });
         }
@@ -3579,13 +3502,13 @@ namespace Tests
         [Fact]
         public static void MultiplyMinInt2()
         {
-            Func<long> f = Expression.Lambda<Func<long>>(
-              Expression.MultiplyChecked(
-                Expression.Constant(long.MinValue, typeof(long)),
-                Expression.Constant((long)-1, typeof(long))),
-              Enumerable.Empty<ParameterExpression>()).Compile();
             Assert.Throws<OverflowException>(() =>
             {
+                Func<long> f = Expression.Lambda<Func<long>>(
+                  Expression.MultiplyChecked(
+                    Expression.Constant(long.MinValue, typeof(long)),
+                    Expression.Constant((long)-1, typeof(long))),
+                  Enumerable.Empty<ParameterExpression>()).Compile();
                 f();
             });
         }
@@ -3600,36 +3523,306 @@ namespace Tests
         [Fact]
         public static void ConvertUnsignedToSigned()
         {
-            Func<sbyte> f2 = Expression.Lambda<Func<sbyte>>(Expression.Convert(Expression.Constant(UInt64.MaxValue), typeof(sbyte))).Compile();
-            Assert.Equal((sbyte)-1, f2());
+            Func<sbyte> f = Expression.Lambda<Func<sbyte>>(Expression.Convert(Expression.Constant(UInt64.MaxValue), typeof(sbyte))).Compile();
+            Assert.Equal((sbyte)-1, f());
         }
 
         [Fact]
         public static void ConvertCheckedSignedToUnsigned()
         {
-            try
-            {
-                Func<ulong> f = Expression.Lambda<Func<ulong>>(Expression.ConvertChecked(Expression.Constant((sbyte)-1), typeof(ulong))).Compile();
-                ulong result = f();
-                Assert.False(true);
-            }
-            catch (OverflowException)
-            {
-            }
+            Func<ulong> f = Expression.Lambda<Func<ulong>>(Expression.ConvertChecked(Expression.Constant((sbyte)-1), typeof(ulong))).Compile();
+            Assert.Throws<OverflowException>(() => f());
         }
 
         [Fact]
         public static void ConvertCheckedUnsignedToSigned()
         {
-            try
+            Func<sbyte> f = Expression.Lambda<Func<sbyte>>(Expression.ConvertChecked(Expression.Constant(UInt64.MaxValue), typeof(sbyte))).Compile();
+            Assert.Throws<OverflowException>(() => f());
+        }
+
+        [Fact]
+        public static void IntSwitch1()
+        {
+            var p = Expression.Parameter(typeof(int));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant(1)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("two")), Expression.Constant(2)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant(1)));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<int, string> f = Expression.Lambda<Func<int, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f(1));
+            Assert.Equal("two", f(2));
+            Assert.Equal("default", f(3));
+        }
+
+        [Fact]
+        public static void NullableIntSwitch1()
+        {
+            var p = Expression.Parameter(typeof(int?));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant((int?)1, typeof(int?))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("two")), Expression.Constant((int?)2, typeof(int?))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant((int?)1, typeof(int?))));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<int?, string> f = Expression.Lambda<Func<int?, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f(1));
+            Assert.Equal("two", f(2));
+            Assert.Equal("default", f(null));
+            Assert.Equal("default", f(3));
+        }
+
+        [Fact]
+        public static void NullableIntSwitch2()
+        {
+            var p = Expression.Parameter(typeof(int?));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant((int?)1, typeof(int?))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("two")), Expression.Constant((int?)2, typeof(int?))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("null")), Expression.Constant((int?)null, typeof(int?))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant((int?)1, typeof(int?))));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<int?, string> f = Expression.Lambda<Func<int?, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f(1));
+            Assert.Equal("two", f(2));
+            Assert.Equal("null", f(null));
+            Assert.Equal("default", f(3));
+        }
+
+        [Fact]
+        public static void IntSwitch2()
+        {
+            var p = Expression.Parameter(typeof(byte));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant((byte)1)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("two")), Expression.Constant((byte)2)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant((byte)1)));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<byte, string> f = Expression.Lambda<Func<byte, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f(1));
+            Assert.Equal("two", f(2));
+            Assert.Equal("default", f(3));
+        }
+
+        [Fact]
+        public static void IntSwitch3()
+        {
+            var p = Expression.Parameter(typeof(uint));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant((uint)1)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("two")), Expression.Constant((uint)2)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant((uint)1)),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("wow")), Expression.Constant(uint.MaxValue)));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<uint, string> f = Expression.Lambda<Func<uint, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f(1));
+            Assert.Equal("wow", f(uint.MaxValue));
+            Assert.Equal("two", f(2));
+            Assert.Equal("default", f(3));
+        }
+
+        [Fact]
+        public static void StringSwitch()
+        {
+            var p = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Constant("default"),
+                Expression.SwitchCase(Expression.Constant("hello"), Expression.Constant("hi")),
+                Expression.SwitchCase(Expression.Constant("lala"), Expression.Constant("bye")));
+
+            Func<string, string> f = Expression.Lambda<Func<string, string>>(s, p).Compile();
+
+            Assert.Equal("hello", f("hi"));
+            Assert.Equal("lala", f("bye"));
+            Assert.Equal("default", f("hi2"));
+            Assert.Equal("default", f(null));
+        }
+
+        [Fact]
+        public static void StringSwitch1()
+        {
+            var p = Expression.Parameter(typeof(string));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant("hi")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("null")), Expression.Constant(null, typeof(string))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant("bye")));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<string, string> f = Expression.Lambda<Func<string, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f("hi"));
+            Assert.Equal("lala", f("bye"));
+            Assert.Equal("default", f("hi2"));
+            Assert.Equal("null", f(null));
+        }
+
+        [Fact]
+        public static void StringSwitchNotConstant()
+        {
+            Expression<Func<string>> expr1 = () => new string('a', 5);
+            Expression<Func<string>> expr2 = () => new string('q', 5);
+
+            var p = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Constant("default"),
+                Expression.SwitchCase(Expression.Invoke(expr1), Expression.Invoke(expr2)),
+                Expression.SwitchCase(Expression.Constant("lala"), Expression.Constant("bye")));
+
+            Func<string, string> f = Expression.Lambda<Func<string, string>>(s, p).Compile();
+
+            Assert.Equal("aaaaa", f("qqqqq"));
+            Assert.Equal("lala", f("bye"));
+            Assert.Equal("default", f("hi2"));
+            Assert.Equal("default", f(null));
+        }
+
+        [Fact]
+        public static void ObjectSwitch1()
+        {
+            var p = Expression.Parameter(typeof(object));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant("hi")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("null")), Expression.Constant(null, typeof(string))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant("bye")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lalala")), Expression.Constant("hi")));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<object, string> f = Expression.Lambda<Func<object, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f("hi"));
+            Assert.Equal("lala", f("bye"));
+            Assert.Equal("default", f("hi2"));
+            Assert.Equal("default", f("HI"));
+            Assert.Equal("null", f(null));
+        }
+
+        static class System_Linq_Expressions_Expression_TDelegate__1
+        {
+            public static T Default<T>() { return default(T); }
+            public static void UseSystem_Linq_Expressions_Expression_TDelegate__1(bool call) // call this passing false
             {
-                Func<sbyte> f2 = Expression.Lambda<Func<sbyte>>(Expression.ConvertChecked(Expression.Constant(UInt64.MaxValue), typeof(sbyte))).Compile();
-                sbyte result = f2();
-                Assert.False(true);
+                if (call)
+                {
+                    Default<System.Linq.Expressions.Expression<System.Object>>().Compile();
+                    Default<System.Linq.Expressions.Expression<System.Object>>().Update(
+                Default<System.Linq.Expressions.Expression>(),
+                Default<System.Collections.Generic.IEnumerable<System.Linq.Expressions.ParameterExpression>>());
+                }
             }
-            catch (OverflowException)
+        }
+
+        [Fact]
+        public static void ExprT_Update()
+        {
+            System_Linq_Expressions_Expression_TDelegate__1.UseSystem_Linq_Expressions_Expression_TDelegate__1(false);
+        }
+
+        public class TestComparers
+        {
+            public static bool CaseInsensitiveStringCompare(string s1, string s2)
             {
+                return StringComparer.OrdinalIgnoreCase.Equals(s1, s2);
             }
+        }
+
+        [Fact]
+        public static void SwitchWithComparison()
+        {
+            var p = Expression.Parameter(typeof(string));
+            var p1 = Expression.Parameter(typeof(string));
+            var s = Expression.Switch(p,
+                Expression.Assign(p1, Expression.Constant("default")),
+                typeof(TestComparers).GetMethod("CaseInsensitiveStringCompare"),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("hello")), Expression.Constant("hi")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("null")), Expression.Constant(null, typeof(string))),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lala")), Expression.Constant("bye")),
+                Expression.SwitchCase(Expression.Assign(p1, Expression.Constant("lalala")), Expression.Constant("hi")));
+
+            var block = Expression.Block(new ParameterExpression[] { p1 }, s, p1);
+
+            Func<string, string> f = Expression.Lambda<Func<string, string>>(block, p).Compile();
+
+            Assert.Equal("hello", f("hi"));
+            Assert.Equal("lala", f("bYe"));
+            Assert.Equal("default", f("hi2"));
+            Assert.Equal("hello", f("HI"));
+            Assert.Equal("null", f(null));
+        }
+
+        public enum MyEnum
+        {
+            Value
+        }
+
+        public class EnumOutLambdaClass
+        {
+            public static void Bar(out MyEnum o)
+            {
+                o = MyEnum.Value;
+            }
+
+            public static void BarRef(ref MyEnum o)
+            {
+                o = MyEnum.Value;
+            }
+        }
+
+        [Fact]
+        public static void UninitializedEnumOut()
+        {
+            var x = Expression.Variable(typeof(MyEnum), "x");
+
+            var expression = Expression.Lambda<Action>(
+                            Expression.Block(
+                            new[] { x },
+                            Expression.Call(null, typeof(EnumOutLambdaClass).GetMethod("Bar"), x)));
+
+            expression.Compile()();
+        }
+
+        [Fact]
+        public static void DefaultEnumRef()
+        {
+            var x = Expression.Variable(typeof(MyEnum), "x");
+
+            var expression = Expression.Lambda<Action>(
+                            Expression.Block(
+                            new[] { x },
+                            Expression.Assign(x, Expression.Default(typeof(MyEnum))),
+                            Expression.Call(null, typeof(EnumOutLambdaClass).GetMethod("BarRef"), x)));
+
+            expression.Compile()();
         }
 
         [Fact]
@@ -3975,6 +4168,31 @@ namespace Tests
             Assert.Equal(2, d(2));
         }
 
+        [Fact]
+        public static void TestNullableMethods()
+        {
+            TestNullableCall(new ArraySegment<int>(), (v) => v.HasValue, (v) => v.HasValue);
+            TestNullableCall(5.1, (v) => v.GetHashCode(), (v) => v.GetHashCode());
+            TestNullableCall(5L, (v) => v.ToString(), (v) => v.ToString());
+            TestNullableCall(5, (v) => v.GetValueOrDefault(7), (v) => v.GetValueOrDefault(7));
+            TestNullableCall(42, (v) => v.Equals(42), (v) => v.Equals(42));
+            TestNullableCall(42, (v) => v.Equals(0), (v) => v.Equals(0));
+            TestNullableCall(5, (v) => v.GetValueOrDefault(), (v) => v.GetValueOrDefault());
+
+            Expression<Func<int?, int>> f = x => x.Value;
+            Func<int?, int> d = f.Compile();
+            Assert.Equal(2, d(2));
+            Assert.Throws<InvalidOperationException>(() => d(null));
+        }
+
+        private static void TestNullableCall<T, U>(T arg, Func<T?, U> f, Expression<Func<T?, U>> e)
+            where T : struct
+        {
+            Func<T?, U> d = e.Compile();
+            Assert.Equal(f(arg), d(arg));
+            Assert.Equal(f(null), d(null));
+        }
+
         public static int BadJuju(int v)
         {
             throw new Exception("Bad Juju");
@@ -4227,14 +4445,6 @@ namespace Tests
     // Extensions on System.Type and friends
     internal static class TypeExtensions
     {
-        /// <summary>
-        /// Creates a closed delegate for the given (dynamic)method.
-        /// </summary>
-        internal static Delegate CreateDelegate(this MethodInfo methodInfo, Type delegateType, object target)
-        {
-            return methodInfo.CreateDelegate(delegateType, target);
-        }
-
         internal static Type GetReturnType(this MethodBase mi)
         {
             return (mi.IsConstructor) ? mi.DeclaringType : ((MethodInfo)mi).ReturnType;
@@ -4315,91 +4525,6 @@ namespace Tests
             return false;
         }
 
-
-        internal static TypeCode GetTypeCode(this Type type)
-        {
-            if (type == typeof(object))
-                return TypeCode.Object;
-            else if (type == typeof(bool))
-                return TypeCode.Boolean;
-            else if (type == typeof(char))
-                return TypeCode.Char;
-            else if (type == typeof(sbyte))
-                return TypeCode.SByte;
-            else if (type == typeof(byte))
-                return TypeCode.Byte;
-            else if (type == typeof(short))
-                return TypeCode.Int16;
-            else if (type == typeof(ushort))
-                return TypeCode.UInt16;
-            else if (type == typeof(int))
-                return TypeCode.Int32;
-            else if (type == typeof(uint))
-                return TypeCode.UInt32;
-            else if (type == typeof(long))
-                return TypeCode.Int64;
-            else if (type == typeof(ulong))
-                return TypeCode.UInt64;
-            else if (type == typeof(float))
-                return TypeCode.Single;
-            else if (type == typeof(double))
-                return TypeCode.Double;
-            else if (type == typeof(decimal))
-                return TypeCode.Decimal;
-            else if (type == typeof(System.DateTime))
-                return TypeCode.DateTime;
-            else if (type == typeof(string))
-                return TypeCode.String;
-            else
-                return TypeCode.Empty;
-        }
-
-        internal static bool IsAssignableFrom(this Type source, Type destination)
-        {
-            return source.GetTypeInfo().IsAssignableFrom(destination.GetTypeInfo());
-        }
-
-        internal static bool IsSubclassOf(this Type source, Type other)
-        {
-            return source.GetTypeInfo().IsSubclassOf(other);
-        }
-
-        internal static Type[] GetGenericArguments(this Type type)
-        {
-            return type.GetTypeInfo().GenericTypeArguments;
-        }
-
-
-        internal static FieldInfo GetField(this Type type, string fieldName)
-        {
-            foreach (var field in type.GetTypeInfo().DeclaredFields)
-            {
-                if (field.Name == fieldName)
-                {
-                    return field;
-                }
-            }
-            return null;
-        }
-
-        internal static MethodInfo GetMethod(this Type type, string methodName)
-        {
-            return type.GetTypeInfo().GetDeclaredMethod(methodName);
-        }
-
-        internal static MethodInfo[] GetStaticMethods(this Type type)
-        {
-            var list = new List<MethodInfo>();
-            foreach (var method in type.GetTypeInfo().DeclaredMethods)
-            {
-                if (method.IsStatic)
-                {
-                    list.Add(method);
-                }
-            }
-            return list.ToArray();
-        }
-
         internal static MethodInfo GetAnyStaticMethod(this Type type, string name)
         {
             foreach (var method in type.GetTypeInfo().DeclaredMethods)
@@ -4411,218 +4536,6 @@ namespace Tests
             }
             return null;
         }
-
-        internal static MethodInfo[] GetMethodsIgnoreCase(this Type type, BindingFlags flags, string name)
-        {
-            var list = new List<MethodInfo>();
-            foreach (var method in type.GetTypeInfo().DeclaredMethods)
-            {
-                if (method.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
-                {
-                    list.Add(method);
-                }
-            }
-            return list.ToArray();
-        }
-
-        internal static MethodInfo GetGetMethod(this PropertyInfo pi, bool nonPublic = false)
-        {
-            return pi.GetMethod;
-        }
-
-        internal static MethodInfo GetSetMethod(this PropertyInfo pi, bool nonPublic = false)
-        {
-            return pi.SetMethod;
-        }
-
-        internal static IEnumerable<PropertyInfo> GetProperties(this Type type, BindingFlags flags)
-        {
-            return type.GetTypeInfo().DeclaredProperties;
-        }
-
-        internal static ConstructorInfo GetConstructor(this Type type, Type[] argTypes)
-        {
-            return GetConstructor(type, BindingFlags.Static | BindingFlags.Public, null, argTypes, null);
-        }
-
-        internal static TypeInfo GetNestedType(this Type type, string name)
-        {
-            foreach (var nested in type.GetTypeInfo().DeclaredNestedTypes)
-            {
-                if (nested.Name == name)
-                {
-                    return nested;
-                }
-            }
-            return null;
-        }
-
-        internal static ConstructorInfo GetConstructor(this Type type, BindingFlags flags, object binder, Type[] argTypes, object[] modifier)
-        {
-            foreach (var ctor in type.GetTypeInfo().DeclaredConstructors)
-            {
-                var parameters = ctor.GetParameters();
-                if (parameters.Length == argTypes.Length)
-                {
-                    bool mismatch = false;
-                    for (int i = 0; i < parameters.Length; i++)
-                    {
-                        if (parameters[i].ParameterType != argTypes[i])
-                        {
-                            mismatch = true;
-                        }
-                    }
-                    if (!mismatch)
-                    {
-                        return ctor;
-                    }
-                }
-            }
-            return null;
-        }
-
-        internal static IEnumerable<MemberInfo> GetMember(this Type type, string name, MemberTypes memberType, BindingFlags flags)
-        {
-            switch (memberType)
-            {
-                case MemberTypes.Method:
-                    foreach (var method in type.GetTypeInfo().DeclaredMethods)
-                    {
-                        if (method.Name == name)
-                        {
-                            yield return method;
-                        }
-                    }
-                    break;
-                default:
-                    throw new InvalidOperationException("type.GetMember for " + memberType);
-            }
-        }
-
-        internal static IEnumerable<MethodInfo> GetMethods(this Type type, BindingFlags flags)
-        {
-            foreach (var method in type.GetTypeInfo().DeclaredMethods)
-            {
-                yield return method;
-            }
-        }
-
-        internal static MethodInfo GetMethod(this Type type, string name, Type[] argTypes)
-        {
-            return GetMethod(type, name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static, null, argTypes, null);
-        }
-
-        internal static MethodInfo GetMethod(this Type type, string name, BindingFlags flags, object binder, Type[] argTypes, object[] modifier)
-        {
-            foreach (var method in type.GetTypeInfo().DeclaredMethods)
-            {
-                if (method.Name != name)
-                {
-                    continue;
-                }
-
-                var parameters = method.GetParameters();
-                if (parameters.Length == argTypes.Length)
-                {
-                    bool mismatch = false;
-                    for (int i = 0; i < parameters.Length; i++)
-                    {
-                        if (parameters[i].ParameterType != argTypes[i])
-                        {
-                            mismatch = true;
-                        }
-                    }
-                    if (!mismatch)
-                    {
-                        return method;
-                    }
-                }
-            }
-            return null;
-        }
-
-        internal static FieldInfo GetField(this Type type, string name, BindingFlags flags)
-        {
-            return type.GetTypeInfo().GetDeclaredField(name);
-        }
-
-        internal static PropertyInfo GetProperty(this Type type, string name, BindingFlags flags)
-        {
-            return type.GetTypeInfo().GetDeclaredProperty(name);
-        }
-
-        internal static PropertyInfo GetProperty(this Type type, string name)
-        {
-            return GetProperty(type, name, BindingFlags.Public | BindingFlags.Instance);
-        }
-
-        internal static MethodInfo GetMethod(this Type type, string name, BindingFlags flags)
-        {
-            return type.GetTypeInfo().GetDeclaredMethod(name);
-        }
-    }
-
-    [Flags]
-    internal enum BindingFlags
-    {
-        Default = 0,
-        IgnoreCase = 1,
-        DeclaredOnly = 2,
-        Instance = 4,
-        Static = 8,
-        Public = 16,
-        NonPublic = 32,
-        AnyStatic = Static | Public | NonPublic,
-        FlattenHierarchy = 64,
-        InvokeMethod = 256,
-        CreateInstance = 512,
-        GetField = 1024,
-        SetField = 2048,
-        GetProperty = 4096,
-        SetProperty = 8192,
-        PutDispProperty = 16384,
-        PutRefDispProperty = 32768,
-        ExactBinding = 65536,
-        SuppressChangeType = 131072,
-        OptionalParamBinding = 262144,
-        IgnoreReturn = 16777216,
-    }
-
-    [Flags]
-    public enum MemberTypes
-    {
-        // The following are the known classes which extend MemberInfo
-        Constructor = 0x01,
-        Event = 0x02,
-        Field = 0x04,
-        Method = 0x08,
-        Property = 0x10,
-        TypeInfo = 0x20,
-        Custom = 0x40,
-        NestedType = 0x80,
-        All = Constructor | Event | Field | Method | Property | TypeInfo | NestedType,
-    }
-
-    public enum TypeCode
-    {
-        Empty = 0,
-        Object = 1,
-        DBNull = 2,
-        Boolean = 3,
-        Char = 4,
-        SByte = 5,
-        Byte = 6,
-        Int16 = 7,
-        UInt16 = 8,
-        Int32 = 9,
-        UInt32 = 10,
-        Int64 = 11,
-        UInt64 = 12,
-        Single = 13,
-        Double = 14,
-        Decimal = 15,
-        DateTime = 16,
-        String = 18,
     }
 
     public struct U

@@ -142,7 +142,7 @@
     <value>Specified file length was too large for the file system.</value>
   </data>
   <data name="IO_PathTooLong" xml:space="preserve">
-    <value>The specified path, file name, or both are too long. The fully qualified file name must be less than 260 characters, and the directory name must be less than 248 characters.</value>
+    <value>The specified file name or path is too long, or a component of the specified path is too long.</value>
   </data>
   <data name="IO_PathNotFound_NoPathName" xml:space="preserve">
     <value>Could not find a part of the path.</value>
@@ -170,5 +170,23 @@
   </data>
   <data name="EventStream_FailedToStart" xml:space="preserve">
     <value>Failed to start the EventStream</value>
+  </data>
+  <data name="Argument_InvalidPathChars" xml:space="preserve">
+    <value>Illegal characters in path.</value>
+  </data>
+  <data name="IOException_INotifyInstanceSystemLimitExceeded" xml:space="preserve">
+    <value>The system limit on the number of inotify instances has been reached.</value>
+  </data>
+  <data name="IOException_INotifyInstanceUserLimitExceeded_Value" xml:space="preserve">
+    <value>The configured user limit ({0}) on the number of inotify instances has been reached.</value>
+  </data>
+  <data name="IOException_INotifyWatchesUserLimitExceeded_Value" xml:space="preserve">
+    <value>The configured user limit ({0}) on the number of inotify watches has been reached.</value>
+  </data>
+  <data name="IOException_INotifyInstanceUserLimitExceeded" xml:space="preserve">
+    <value>The configured user limit on the number of inotify instances has been reached.</value>
+  </data>
+  <data name="IOException_INotifyWatchesUserLimitExceeded" xml:space="preserve">
+    <value>The configured user limit on the number of inotify watches has been reached.</value>
   </data>
 </root>

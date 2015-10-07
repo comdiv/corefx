@@ -1,97 +1,70 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Xunit;
-using Microsoft.Win32;
 using System;
-using System.Threading;
+using Xunit;
 
 namespace Microsoft.Win32.RegistryTests
 {
-    public class RegistryKey_DeleteSubKeyTree : IDisposable
+    public class RegistryKey_DeleteSubKeyTree : RegistryTestsBase
     {
-        private RegistryKey _rk;
-        private string _madeUpKey = "MadeUpKey";
-        private string _subKeyExists = "SubkeyExists";
-        private string _subKeyExists2 = "SubkeyExists2";
-        private static int s_keyCount = 0;
-
-        public void TestInitialize()
+        [Fact]
+        public void NegativeTests()
         {
-            var counter = Interlocked.Increment(ref s_keyCount);
-            _madeUpKey = _madeUpKey + counter.ToString();
-            _rk = Registry.CurrentUser.OpenSubKey("Software", true);
-            if (_rk.OpenSubKey(_madeUpKey) != null)
-                _rk.DeleteSubKeyTree(_madeUpKey);
-            if (_rk.OpenSubKey(_subKeyExists) != null)
-                _rk.DeleteSubKeyTree(_subKeyExists);
-            if (_rk.OpenSubKey(_subKeyExists2) != null)
-                _rk.DeleteSubKeyTree(_subKeyExists2);
-        }
+            const string name = "Test";
 
-        public RegistryKey_DeleteSubKeyTree()
-        {
-            TestInitialize();
+            // Should throw if passed subkey name is null
+            Assert.Throws<ArgumentNullException>(() => TestRegistryKey.DeleteSubKeyTree(null, throwOnMissingSubKey: true));
+            Assert.Throws<ArgumentNullException>(() => TestRegistryKey.DeleteSubKeyTree(null, throwOnMissingSubKey: false));
+
+            // Should throw if target subkey is system subkey and name is empty
+            Assert.Throws<ArgumentException>(() => Registry.CurrentUser.DeleteSubKeyTree(string.Empty, throwOnMissingSubKey: false));
+
+            // Should throw because subkey doesn't exists
+            Assert.Throws<ArgumentException>(() => TestRegistryKey.DeleteSubKeyTree(name, throwOnMissingSubKey: true));
+
+            // Should throw because RegistryKey is readonly
+            using (var rk = TestRegistryKey.OpenSubKey(string.Empty, false))
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => rk.DeleteSubKeyTree(name, throwOnMissingSubKey: false));
+            }
+
+            // Should throw if RegistryKey is closed
+            Assert.Throws<ObjectDisposedException>(() =>
+            {
+                TestRegistryKey.Dispose();
+                TestRegistryKey.DeleteSubKeyTree(name, throwOnMissingSubKey: true);
+            });
         }
 
         [Fact]
-        public void SubkeyMissingTests()
+        public void SubkeyMissingTest()
         {
-            //throwOnMissing is true with subkey missing
-            Action a = () => { _rk.DeleteSubKeyTree("MadeUpKey", true);  };
-            Assert.Throws<ArgumentException>(() => { a(); });
-
-            //throwOnMissing is false with subkey missing
-            try
-            {
-                _rk.DeleteSubKeyTree(_madeUpKey, false);
-            }
-            catch (Exception e)
-            {
-                Assert.False(true, string.Format("Unexpected Exception: {0}", e));
-            }
+            //Should NOT throw when throwOnMissing is false with subkey missing
+            const string name = "Test";
+            TestRegistryKey.DeleteSubKeyTree(name, throwOnMissingSubKey: false);
         }
 
         [Fact]
         public void SubkeyExistsTests()
         {
+            const string subKeyExists = "SubkeyExists";
+            const string subKeyExists2 = "SubkeyExists2";
+
             //throwOnMissing is true with subkey present
-            try
+            using (var rk = TestRegistryKey.CreateSubKey(subKeyExists))
             {
-                RegistryKey rk2 = _rk.CreateSubKey(_subKeyExists);
-                rk2.CreateSubKey("a");
-                rk2.CreateSubKey("b");
-                _rk.DeleteSubKeyTree(_subKeyExists, false);
+                rk.CreateSubKey("a");
+                rk.CreateSubKey("b");
+                TestRegistryKey.DeleteSubKeyTree(subKeyExists, false);
             }
-            catch (Exception e)
-            {
-                Assert.False(true, string.Format("Unexpected Exception: {0}", e));
-            }
-
             //throwOnMissing is false with subkey present
-            try
+            using (var rk = TestRegistryKey.CreateSubKey(subKeyExists2))
             {
-                RegistryKey rk2 = _rk.CreateSubKey(_subKeyExists2);
-                rk2.CreateSubKey("a");
-                rk2.CreateSubKey("b");
-                _rk.DeleteSubKeyTree(_subKeyExists2, true);
+                rk.CreateSubKey("a");
+                rk.CreateSubKey("b");
+                TestRegistryKey.DeleteSubKeyTree(subKeyExists2, true);
             }
-            catch (Exception e)
-            {
-                Assert.False(true, string.Format("Unexpected Exception: {0}", e));
-            }
-        }
-
-        public void Dispose()
-        {
-            // Clean up
-            _rk = Registry.CurrentUser.OpenSubKey("SOFTWARE", true);
-            if (_rk.OpenSubKey(_madeUpKey) != null)
-                _rk.DeleteSubKeyTree(_madeUpKey);
-            if (_rk.OpenSubKey(_subKeyExists) != null)
-                _rk.DeleteSubKeyTree(_subKeyExists);
-            if (_rk.OpenSubKey(_subKeyExists2) != null)
-                _rk.DeleteSubKeyTree(_subKeyExists2);
         }
     }
 }

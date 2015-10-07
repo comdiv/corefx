@@ -1,7 +1,5 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//------------------------------------------------------------
-//------------------------------------------------------------
 
 namespace System.Runtime.Serialization
 {
@@ -52,7 +50,8 @@ namespace System.Runtime.Serialization
 
         public DataContractSerializer(Type type, string rootName, string rootNamespace, IEnumerable<Type> knownTypes)
         {
-            Initialize(type, new XmlDictionaryString(null, rootName, 0), new XmlDictionaryString(null, rootNamespace, 0), knownTypes, int.MaxValue, false, false, null, false);
+            XmlDictionary dictionary = new XmlDictionary(2);
+            Initialize(type, dictionary.Add(rootName), dictionary.Add(DataContract.GetNamespace(rootNamespace)), knownTypes, int.MaxValue, false, false, null, false);
         }
 
 
@@ -65,6 +64,17 @@ namespace System.Runtime.Serialization
         {
             Initialize(type, rootName, rootNamespace, knownTypes, int.MaxValue, false, false, null, false);
         }
+
+#if NET_NATIVE
+        public DataContractSerializer(Type type, IEnumerable<Type> knownTypes, int maxItemsInObjectGraph, bool ignoreExtensionDataObject, bool preserveObjectReferences)
+#elif MERGE_DCJS
+        internal DataContractSerializer(Type type, IEnumerable<Type> knownTypes, int maxItemsInObjectGraph, bool ignoreExtensionDataObject, bool preserveObjectReferences)
+#endif
+#if NET_NATIVE || MERGE_DCJS
+        {
+            Initialize(type, knownTypes, maxItemsInObjectGraph, ignoreExtensionDataObject, preserveObjectReferences, null, false);
+        }
+#endif
 
         public DataContractSerializer(Type type, XmlDictionaryString rootName, XmlDictionaryString rootNamespace,
             IEnumerable<Type> knownTypes,
@@ -143,7 +153,7 @@ namespace System.Runtime.Serialization
                     }
                     else
                     {
-                        _knownTypeCollection = new ReadOnlyCollection<Type>(Globals.EmptyTypeArray);
+                        _knownTypeCollection = new ReadOnlyCollection<Type>(Array.Empty<Type>());
                     }
                 }
                 return _knownTypeCollection;
@@ -380,6 +390,10 @@ namespace System.Runtime.Serialization
             if (dataContractResolver == null)
                 dataContractResolver = this.DataContractResolver;
 
+#if NET_NATIVE
+            // Give the root contract a chance to initialize or pre-verify the read
+            RootContract.PrepareToRead(xmlReader);
+#endif
             if (verifyObjectName)
             {
                 if (!InternalIsStartObject(xmlReader))

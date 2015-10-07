@@ -5,6 +5,7 @@ using Xunit;
 using SerializationTypes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
@@ -89,7 +90,7 @@ public static class DataContractJsonSerializerTests
     [Fact]
     public static void DCJS_DateTimeAsRoot()
     {
-        var offsetMinutes = (int)TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes;
+        var offsetMinutes = (int)TimeZoneInfo.Local.GetUtcOffset(new DateTime(2013, 1, 2)).TotalMinutes;
         var timeZoneString = string.Format("{0:+;-}{1}", offsetMinutes, new TimeSpan(0, offsetMinutes, 0).ToString(@"hhmm"));
         Assert.StrictEqual(SerializeAndDeserialize<DateTime>(new DateTime(2013, 1, 2).AddMinutes(offsetMinutes), string.Format("\"\\/Date(1357084800000{0})\\/\"", timeZoneString)), new DateTime(2013, 1, 2).AddMinutes(offsetMinutes));
         Assert.StrictEqual(SerializeAndDeserialize<DateTime>(new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Local).AddMinutes(offsetMinutes), string.Format("\"\\/Date(1357095845006{0})\\/\"", timeZoneString)), new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Local).AddMinutes(offsetMinutes));
@@ -835,9 +836,9 @@ public static class DataContractJsonSerializerTests
     [Fact]
     public static void DCJS_SuspensionManager()
     {
-        var dict2 = new Dictionary<string, object> {{"Key2-0", "Value2-0"}};
-        var dict1 = new Dictionary<string, object> {{"Key1-0", "Value1-0"}, {"Key1-1", dict2}};
-        var dict0 = new Dictionary<string, object> {{"Key0", dict1}};
+        var dict2 = new Dictionary<string, object> { { "Key2-0", "Value2-0" } };
+        var dict1 = new Dictionary<string, object> { { "Key1-0", "Value1-0" }, { "Key1-1", dict2 } };
+        var dict0 = new Dictionary<string, object> { { "Key0", dict1 } };
 
         var y = SerializeAndDeserialize<Dictionary<string, object>>(dict0, "[{\"Key\":\"Key0\",\"Value\":[{\"__type\":\"KeyValuePairOfstringanyType:#System.Collections.Generic\",\"key\":\"Key1-0\",\"value\":\"Value1-0\"},{\"__type\":\"KeyValuePairOfstringanyType:#System.Collections.Generic\",\"key\":\"Key1-1\",\"value\":[{\"__type\":\"KeyValuePairOfstringanyType:#System.Collections.Generic\",\"key\":\"Key2-0\",\"value\":\"Value2-0\"}]}]}]");
         Assert.NotNull(y);
@@ -901,7 +902,7 @@ public static class DataContractJsonSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCS_XElementAsRoot()
     {
         var original = new XElement("ElementName1");
@@ -913,12 +914,11 @@ public static class DataContractJsonSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCJS_WithXElement()
     {
         var original = new WithXElement(true);
-        var actual = SerializeAndDeserialize<WithXElement>(original, "{\"e\":\"<ElementName1 Attribute1=\\\"AttributeValue1\\\">Value1<\\/ElementName1>\"}",
-            skipStringCompare: true);
+        var actual = SerializeAndDeserialize<WithXElement>(original, "{\"e\":\"<ElementName1 Attribute1=\\\"AttributeValue1\\\">Value1<\\/ElementName1>\"}");
 
         VerifyXElementObject(original.e, actual.e);
     }
@@ -935,7 +935,7 @@ public static class DataContractJsonSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCJS_WithXElementWithNestedXElement()
     {
         var original = new WithXElementWithNestedXElement(true);
@@ -946,7 +946,7 @@ public static class DataContractJsonSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCJS_WithArrayOfXElement()
     {
         var original = new WithArrayOfXElement(true);
@@ -959,7 +959,7 @@ public static class DataContractJsonSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCJS_WithListOfXElement()
     {
         var original = new WithListOfXElement(true);
@@ -998,7 +998,7 @@ public static class DataContractJsonSerializerTests
         Assert.Equal(jaggedStringArray[1], actualJaggedStringArray[1]);
         Assert.Equal(jaggedStringArray[2], actualJaggedStringArray[2]);
 
-        var offsetMinutes = (int)TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes;
+        var offsetMinutes = (int)TimeZoneInfo.Local.GetUtcOffset(new DateTime(2013, 1, 2)).TotalMinutes;
         var timeZoneString = string.Format("{0:+;-}{1}", offsetMinutes, new TimeSpan(0, offsetMinutes, 0).ToString(@"hhmm"));
         object[] objectArray = new object[] { 1, 1.0F, 1.0, "string", Guid.Parse("2054fd3e-e118-476a-9962-1a882be51860"), new DateTime(2013, 1, 2).AddMinutes(offsetMinutes) };
         var actualObjectArray = SerializeAndDeserialize<object[]>(objectArray, string.Format("[1,1,1,\"string\",\"2054fd3e-e118-476a-9962-1a882be51860\",\"\\/Date(1357084800000{0})\\/\"]", timeZoneString));
@@ -1034,14 +1034,16 @@ public static class DataContractJsonSerializerTests
     [Fact]
     public static void DCJS_EnumerableCollection()
     {
-        var offsetMinutes = (int)TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes;
-        var timeZoneString = string.Format("{0:+;-}{1}", offsetMinutes, new TimeSpan(0, offsetMinutes, 0).ToString(@"hhmm"));
+        var dates = new DateTime[] {new DateTime(2000, 1, 1), new DateTime(2000, 1, 2), new DateTime(2000, 1, 3)};
         var original = new EnumerableCollection();
-        original.Add(new DateTime(2000, 1, 1).AddMinutes(offsetMinutes));
-        original.Add(new DateTime(2000, 1, 2).AddMinutes(offsetMinutes));
-        original.Add(new DateTime(2000, 1, 3).AddMinutes(offsetMinutes));
-        var actual = SerializeAndDeserialize<EnumerableCollection>(original, string.Format("[\"\\/Date(946684800000{0})\\/\",\"\\/Date(946771200000{0})\\/\",\"\\/Date(946857600000{0})\\/\"]", timeZoneString));
-
+        var timeZoneStrings = new List<string>();
+        foreach (var date in dates)
+        {
+            var offsetMinutes = (int) TimeZoneInfo.Local.GetUtcOffset(date).TotalMinutes;
+            original.Add(date.AddMinutes(offsetMinutes));
+            timeZoneStrings.Add(string.Format("{0:+;-}{1}", offsetMinutes, new TimeSpan(0, offsetMinutes, 0).ToString(@"hhmm")));
+        }
+        var actual = SerializeAndDeserialize<EnumerableCollection>(original, string.Format("[\"\\/Date(946684800000{0})\\/\",\"\\/Date(946771200000{1})\\/\",\"\\/Date(946857600000{2})\\/\"]", timeZoneStrings.ToArray()));
         Assert.Equal((IEnumerable<DateTime>)actual, (IEnumerable<DateTime>)original);
     }
 
@@ -1201,7 +1203,7 @@ public static class DataContractJsonSerializerTests
             dcjs.WriteObject(stream, obj);
             stream.Position = 0;
             var serializedStr = new StreamReader(stream).ReadToEnd();
-            Console.WriteLine("Serialized string is: {0}", serializedStr);
+            Debug.WriteLine("Serialized string is: {0}", serializedStr);
 
             stream.Position = 0;
             var obj2 = (TypeWithDateTimeStringProperty)dcjs.ReadObject(stream);
@@ -1260,7 +1262,57 @@ public static class DataContractJsonSerializerTests
         Assert.StrictEqual("Bar Summary", deserializedValue.Articles[0].Title);
     }
 
-    private static T SerializeAndDeserialize<T>(T value, string baseline, DataContractJsonSerializerSettings settings = null, Func<DataContractJsonSerializer> serializerFactory = null, bool skipStringCompare = false)
+    [Fact]
+    public static void DCJS_SerializationEvents()
+    {
+        var input = new MyType() { Value = "string value" };
+        var output = SerializeAndDeserialize<MyType>(input, "{\"Value\":\"string value\"}");
+
+        Assert.True(input.OnSerializingMethodInvoked, "input.OnSerializingMethodInvoked is false");
+        Assert.True(input.OnSerializedMethodInvoked, "input.OnSerializedMethodInvoked is false");
+        Assert.True(output.OnDeserializingMethodInvoked, "output.OnDeserializingMethodInvoked is false");
+        Assert.True(output.OnDeserializedMethodInvoked, "output.OnDeserializedMethodInvoked is false");
+    }
+
+    [Fact]
+    public static void DCJS_DeserializeEmptyString()
+    {
+        var serializer = new DataContractJsonSerializer(typeof (object));
+        Assert.Throws<SerializationException>(() =>
+        {
+            serializer.ReadObject(new MemoryStream());
+        });
+    }
+
+    [Fact]
+    public static void DCJS_UseSimpleDictionaryFormat()
+    {
+        Dictionary<string, string> dict = new Dictionary<string, string>();
+        dict.Add("key1", "value1");
+        dict.Add("key2", "value2");
+        var deserialized = SerializeAndDeserialize(dict, @"{""key1"":""value1"",""key2"":""value2""}",
+            new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true });
+        Assert.StrictEqual(2, deserialized.Count);
+        Assert.True(deserialized.ContainsKey("key1"));
+        Assert.True(deserialized.ContainsKey("key2"));
+        Assert.StrictEqual(dict["key1"], deserialized["key1"]);
+        Assert.StrictEqual(dict["key2"], deserialized["key2"]);
+    }
+
+    [Fact]
+    public static void DCJS_DataMemberNames()
+    {
+        var obj = new AppEnvironment()
+        {
+            ScreenDpi = 440,
+            ScreenOrientation = "horizontal"
+        };
+        var actual = SerializeAndDeserialize(obj, @"{""screen_dpi(x:y)"":440,""screen:orientation"":""horizontal""}");
+        Assert.StrictEqual(obj.ScreenDpi, actual.ScreenDpi);
+        Assert.StrictEqual(obj.ScreenOrientation, actual.ScreenOrientation);
+    }
+
+    private static T SerializeAndDeserialize<T>(T value, string baseline, DataContractJsonSerializerSettings settings = null, Func<DataContractJsonSerializer> serializerFactory = null)
     {
         DataContractJsonSerializer dcjs;
         if (serializerFactory != null)
@@ -1272,43 +1324,21 @@ public static class DataContractJsonSerializerTests
             dcjs = (settings != null) ? new DataContractJsonSerializer(typeof(T), settings) : new DataContractJsonSerializer(typeof(T));
         }
 
-        Console.WriteLine("Testing input value : {0}", value);
-
         using (MemoryStream ms = new MemoryStream())
         {
-            try
-            {
-                dcjs.WriteObject(ms, value);
-                ms.Position = 0;
-            }
-            catch
-            {
-                Console.WriteLine("Error while serializing value");
-                throw;
-            }
+            dcjs.WriteObject(ms, value);
+            ms.Position = 0;
 
             string actualOutput = new StreamReader(ms).ReadToEnd();
             ms.Position = 0;
             Utils.CompareResult result = Utils.Compare(baseline, actualOutput, false);
 
-            if (!result.Equal && !skipStringCompare)
-            {
-                Console.WriteLine(result.ErrorMessage);
-                throw new Exception(string.Format("Test failed for input : {0}", value));
-            }
+            Assert.True(result.Equal, string.Format("{1}{0}Test failed for input: {2}{0}Expected: {3}{0}Actual: {4}",
+                Environment.NewLine, result.ErrorMessage, value, baseline, actualOutput));
 
             ms.Position = 0;
-            T deserialized;
-            try
-            {
-                deserialized = (T)dcjs.ReadObject(ms);
-            }
-            catch
-            {
-                Console.WriteLine("Error deserializing value. the serialized string was:" + Environment.NewLine + actualOutput);
-                throw;
-            }
-
+            T deserialized = (T)dcjs.ReadObject(ms);
+    
             return deserialized;
         }
     }

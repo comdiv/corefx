@@ -1,112 +1,57 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Xunit;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
 using System;
 using System.IO;
-using System.Threading;
+using Microsoft.Win32.SafeHandles;
+using Xunit;
 
 namespace Microsoft.Win32.RegistryTests
 {
-    public class SafeRegistryHandleTests : IDisposable
+    public class SafeRegistryHandleTests : RegistryTestsBase
     {
         [Fact]
-        public void TestNullHandle()
+        public void NegativeTests()
         {
-            //null handle
-            Action a = () =>
+            // null handle
+            Assert.Throws<ArgumentNullException>(() => RegistryKey.FromHandle(handle: null, view: RegistryView.Default));
+
+            // invalid view
+            Assert.Throws<ArgumentException>(() => RegistryKey.FromHandle(TestRegistryKey.Handle, (RegistryView)(-1)));
+            Assert.Throws<ArgumentException>(() => RegistryKey.FromHandle(TestRegistryKey.Handle, (RegistryView)3));
+
+            // get handle of disposed RegistryKey
+            Assert.Throws<ObjectDisposedException>(() =>
             {
-                SafeRegistryHandle handle = null;
-                RegistryKey rk2 = RegistryKey.FromHandle(handle, RegistryView.Default);
-            };
+                TestRegistryKey.Dispose();
+                return TestRegistryKey.Handle;
+            });
 
-            Assert.Throws<ArgumentNullException>(() => { a(); });
-        }
-
-        [Fact]
-        public void TestInvalidView()
-        {
-            //View is -1
-            Action a = () =>
-            {
-                RegistryView view = (RegistryView)(-1);
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software", true);
-                rk = rk.CreateSubKey("TestKeyThatExists");
-                SafeRegistryHandle handle = rk.Handle;
-                RegistryKey rk2 = RegistryKey.FromHandle(handle, view);
-            };
-
-            Assert.Throws<ArgumentException>(() => { a(); });
-
-            //View is 3
-            Action a1 = () =>
-            {
-                RegistryView view = (RegistryView)3;
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software", true);
-                rk = rk.CreateSubKey("TestKeyThatExists");
-                SafeRegistryHandle handle = rk.Handle;
-                RegistryKey rk2 = RegistryKey.FromHandle(handle, view);
-            };
-
-            Assert.Throws<ArgumentException>(() => { a1(); });
-        }
-
-        [Fact]
-        public void TestDisposedRegistryKey()
-        {
-            //Try getting handle on disposed key.
-            Action a1 = () =>
-            {
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software", true);
-                rk = rk.CreateSubKey("TestKeyThatExists");
-                rk.Dispose();
-                SafeRegistryHandle handle = rk.Handle;
-            };
-
-            Assert.Throws<ObjectDisposedException>(() => { a1(); });
         }
 
         [Fact]
         public void TestDeletedRegistryKey()
         {
+            const string subKeyName = "TestKeyThatWillBeDeleted";
             //Try getting registrykey from handle for key that has been deleted.
-            Action a1 = () =>
+            Assert.Throws<IOException>(() =>
             {
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software", true);
-                RegistryKey rk2 = rk.CreateSubKey("TestKeyThatWillBeDeleted");
-                SafeRegistryHandle handle = rk2.Handle;
-                rk.DeleteSubKey("TestKeyThatWillBeDeleted");
-                RegistryKey rk3 = RegistryKey.FromHandle(handle, RegistryView.Default);
-                rk3.CreateSubKey("TestThrows");
-            };
-
-            Assert.Throws<IOException>(() => { a1(); });
+                RegistryKey rk = TestRegistryKey.CreateSubKey(subKeyName);
+                SafeRegistryHandle handle = rk.Handle;
+                TestRegistryKey.DeleteSubKey(subKeyName);
+                rk = RegistryKey.FromHandle(handle, RegistryView.Default);
+                rk.CreateSubKey("TestThrows");
+            });
 
             //Try getting handle on deleted key.
-            Action a2 = () =>
+            Assert.Throws<IOException>(() =>
             {
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software", true);
-                RegistryKey rk2 = rk.CreateSubKey("TestKeyThatWillBeDeleted");
-                rk.DeleteSubKey("TestKeyThatWillBeDeleted");
-                SafeRegistryHandle handle = rk2.Handle;
-                RegistryKey rk3 = RegistryKey.FromHandle(handle, RegistryView.Default);
-                rk3.CreateSubKey("TestThrows");
-            };
-
-            Assert.Throws<IOException>(() => { a2(); });
-        }
-
-        public void Dispose()
-        {
-            RegistryKey rk = Registry.CurrentUser.OpenSubKey("Software", true);
-            if (rk.OpenSubKey("TestKeyThatExists") != null)
-                rk.DeleteSubKeyTree("TestKeyThatExists");
-            if (rk.OpenSubKey("TestKeyThatWillBeDeleted") != null)
-                rk.DeleteSubKeyTree("TestKeyThatWillBeDeleted");
-            if (rk.OpenSubKey("TestThrows") != null)
-                rk.DeleteSubKeyTree("TestThrows");
+                RegistryKey rk = TestRegistryKey.CreateSubKey(subKeyName);
+                TestRegistryKey.DeleteSubKey(subKeyName);
+                SafeRegistryHandle handle = rk.Handle;
+                rk = RegistryKey.FromHandle(handle, RegistryView.Default);
+                rk.CreateSubKey("TestThrows");
+            });
         }
     }
 }

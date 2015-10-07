@@ -2,10 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Xunit;
-using System;
-using System.Xml;
 
-namespace XmlDocumentTests.XmlDocumentTests
+namespace System.Xml.Tests
 {
     public class CreateElementTests
     {
@@ -86,7 +84,6 @@ namespace XmlDocumentTests.XmlDocumentTests
         }
 
         [Fact]
-        [ActiveIssue(228)]
         public static void NameWithWhitespace()
         {
             var xmlDocument = new XmlDocument();

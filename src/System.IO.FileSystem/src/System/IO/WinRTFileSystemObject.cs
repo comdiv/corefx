@@ -57,7 +57,8 @@ namespace System.IO
                     catch (UnauthorizedAccessException)
                     {
                         // For consistency with Win32 we remap ACCESS_DENIED to ArgumentException
-                        throw new ArgumentException(SR.UnauthorizedAccess_IODenied_NoPathName);
+                        // Intentionally omit argument name since this is mimicking the Win32 sourced ArgumentException
+                        throw new ArgumentException(SR.UnauthorizedAccess_IODenied_NoPathName /*, intentionally omitted*/);
                     }
                     // reset our attributes
                     _item = null;
@@ -151,7 +152,7 @@ namespace System.IO
                 return properties.Size;
             }
 
-            // Consumes cached file/directory information and throw if any error occured retrieving 
+            // Consumes cached file/directory information and throw if any error occurred retrieving 
             // it, including file not found.
             private void EnsureItemExists()
             {

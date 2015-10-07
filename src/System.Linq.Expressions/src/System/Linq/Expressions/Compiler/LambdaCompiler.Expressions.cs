@@ -70,7 +70,7 @@ namespace System.Linq.Expressions.Compiler
 
         /// <summary>
         /// Emits an expression and discards the result.  For some nodes this emits
-        /// more optimial code then EmitExpression/Pop
+        /// more optimal code then EmitExpression/Pop
         /// </summary>
         private void EmitExpressionAsVoid(Expression node)
         {
@@ -183,7 +183,7 @@ namespace System.Linq.Expressions.Compiler
             if (typeof(LambdaExpression).IsAssignableFrom(expr.Type))
             {
                 // if the invoke target is a lambda expression tree, first compile it into a delegate
-                expr = Expression.Call(expr, expr.Type.GetMethod("Compile", new Type[0]));
+                expr = Expression.Call(expr, expr.Type.GetMethod("Compile", Array.Empty<Type>()));
             }
             expr = Expression.Call(expr, expr.Type.GetMethod("Invoke"), node.Arguments);
 
@@ -202,7 +202,7 @@ namespace System.Linq.Expressions.Compiler
             List<WriteBack> wb = EmitArguments(lambda.Type.GetMethod("Invoke"), invoke);
 
             // 2. Create the nested LambdaCompiler
-            var inner = new LambdaCompiler(this, lambda);
+            var inner = new LambdaCompiler(this, lambda, invoke);
 
             // 3. Emit the body
             // if the inlined lambda is the last expression of the whole lambda,
@@ -1068,7 +1068,7 @@ namespace System.Linq.Expressions.Compiler
                     }
                     EmitMethodCall(initializers[i].AddMethod, initializers[i], objectType);
 
-                    // Aome add methods, ArrayList.Add for example, return non-void
+                    // Some add methods, ArrayList.Add for example, return non-void
                     if (initializers[i].AddMethod.ReturnType != typeof(void))
                     {
                         _ilg.Emit(OpCodes.Pop);

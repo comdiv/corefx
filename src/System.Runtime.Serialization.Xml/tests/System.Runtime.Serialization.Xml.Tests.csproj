@@ -9,10 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>System.Runtime.Serialization.Xml.Tests</RootNamespace>
     <AssemblyName>System.Runtime.Serialization.Xml.Tests</AssemblyName>
-    <SignAssembly>false</SignAssembly>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ProjectGuid>{30CAB353-089E-4294-B23B-F2DD1D945654}</ProjectGuid>
-    <UnsupportedOperatingSystems>Linux</UnsupportedOperatingSystems>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils.cs" />
@@ -20,9 +17,7 @@
     <Compile Include="DataContractSerializer.cs" />
     <Compile Include="DataContractSerializerTestData.cs" />
     <Compile Include="MyResolver.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="$(CommonTestPath)\System\Console.cs" />
+    <Compile Include="XmlDictionaryWriterTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\System.Private.DataContractSerialization\src\System.Private.DataContractSerialization.csproj">
@@ -37,13 +32,9 @@
       <Project>{D62A6082-5229-4845-8BE9-75753E08C65A}</Project>
       <Name>System.Xml.XmlSerializer</Name>
     </ProjectReference>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj">
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project>
-      <Name>XunitTraitsDiscoverers</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

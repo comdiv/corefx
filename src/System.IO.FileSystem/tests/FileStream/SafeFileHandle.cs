@@ -4,9 +4,10 @@
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class FileStream_SafeFileHandle : FileSystemTest
     {
@@ -90,8 +91,15 @@ namespace System.IO.FileSystem.Tests
                     Assert.Throws<IOException>(() => fs.Read(new byte[1], 0, 1));
 
                     fs.WriteByte(0);
-                    fsr.Position++; 
-                    Assert.Throws<IOException>(() => FSAssert.CompletesSynchronously(fs.ReadAsync(new byte[1], 0, 1)));
+                    fsr.Position++;
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) // TODO: [ActiveIssue(812)]: Remove guard when async I/O is properly implemented on Unix
+                    {
+                        Assert.Throws<IOException>(() => FSAssert.CompletesSynchronously(fs.ReadAsync(new byte[1], 0, 1)));
+                    }
+                    else
+                    {
+                        Assert.ThrowsAsync<IOException>(() => fs.ReadAsync(new byte[1], 0, 1)).Wait();
+                    }
 
                     fs.WriteByte(0);
                     fsr.Position++; 

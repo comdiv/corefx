@@ -18,6 +18,8 @@ namespace System.IO.MemoryMappedFiles
         private unsafe MemoryMappedView(SafeMemoryMappedViewHandle viewHandle, long pointerOffset,
                                         long size, MemoryMappedFileAccess access)
         {
+            Debug.Assert(viewHandle != null);
+
             _viewHandle = viewHandle;
             _pointerOffset = pointerOffset;
             _size = size;
@@ -48,7 +50,7 @@ namespace System.IO.MemoryMappedFiles
         [SecurityCritical]
         protected virtual void Dispose(bool disposing)
         {
-            if (_viewHandle != null && !_viewHandle.IsClosed)
+            if (!_viewHandle.IsClosed)
             {
                 _viewHandle.Dispose();
             }
@@ -64,7 +66,7 @@ namespace System.IO.MemoryMappedFiles
         public bool IsClosed
         {
             [SecuritySafeCritical]
-            get { return (_viewHandle == null || _viewHandle.IsClosed); }
+            get { return _viewHandle.IsClosed; }
         }
 
         /// <summary>
@@ -78,8 +80,8 @@ namespace System.IO.MemoryMappedFiles
         /// <param name="extraMemNeeded">The amount <paramref name="newSize"/> and <paramref name="newOffset"/> were shifted.</param>
         /// <param name="newOffset">The shifted offset based on the <paramref name="allocationGranularity"/>.</param>
         private static void ValidateSizeAndOffset(
-            long size, long offset, int allocationGranularity,
-            out ulong newSize, out ulong extraMemNeeded, out ulong newOffset)
+            long size, long offset, long allocationGranularity,
+            out ulong newSize, out long extraMemNeeded, out long newOffset)
         {
             Debug.Assert(size >= 0);
             Debug.Assert(offset >= 0);
@@ -88,9 +90,9 @@ namespace System.IO.MemoryMappedFiles
             // Determine how much extra memory needs to be allocated to align on the size of allocationGranularity.
             // The newOffset is then moved down by that amount, and the newSize is increased by that amount.
 
-            extraMemNeeded = (ulong)offset % (ulong)allocationGranularity;
-            newOffset = (ulong)offset - extraMemNeeded;
-            newSize = (size != MemoryMappedFile.DefaultSize) ? (ulong)size + extraMemNeeded : 0;
+            extraMemNeeded = offset % allocationGranularity;
+            newOffset = offset - extraMemNeeded;
+            newSize = (size != MemoryMappedFile.DefaultSize) ? (ulong)size + (ulong)extraMemNeeded : 0;
 
             if (IntPtr.Size == 4 && newSize > uint.MaxValue)
             {

@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Diagnostics;
-using Tools;
 using Xunit;
 
 namespace System.Numerics.Tests
@@ -17,6 +15,13 @@ namespace System.Numerics.Tests
         {
             byte[] tempByteArray1 = new byte[0];
             byte[] tempByteArray2 = new byte[0];
+
+            // Multiply Method - One Large BigInteger
+            for (int i = 0; i < s_samples; i++)
+            {
+                tempByteArray1 = GetRandomByteArray(s_random);
+                VerifyMultiplyString(Print(tempByteArray1) + "u*");
+            }
 
             // Multiply Method - Two Large BigIntegers
             for (int i = 0; i < s_samples; i++)
@@ -158,6 +163,13 @@ namespace System.Numerics.Tests
         {
             byte[] tempByteArray1 = new byte[0];
             byte[] tempByteArray2 = new byte[0];
+
+            // Multiply Method - One Large BigInteger
+            for (int i = 0; i < s_samples; i++)
+            {
+                tempByteArray1 = GetRandomByteArray(s_random);
+                VerifyMultiplyString(Print(tempByteArray1) + "u*");
+            }
 
             // Multiply Method - Two Large BigIntegers
             for (int i = 0; i < s_samples; i++)

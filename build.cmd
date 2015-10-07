@@ -18,11 +18,16 @@ if not defined VisualStudioVersion (
     )
 
     echo Error: build.cmd requires Visual Studio 2013 or 2015.  
-    echo        Please see https://github.com/dotnet/corefx/wiki/Developer-Guide for build instructions.
+    echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
     exit /b 1
 )
 
 :EnvSet
+:: Clear the 'Platform' env variable for this session,
+:: as it's a per-project setting within the build, and
+:: misleading value (such as 'MCD' in HP PCs) may lead
+:: to build breakage (issue: #69).
+set Platform=
 
 :: Log build command line
 set _buildproj=%~dp0build.proj
@@ -39,7 +44,7 @@ call :build %*
 goto :AfterBuild
 
 :build
-%_buildprefix% msbuild "%_buildproj%" /nologo /maxcpucount /verbosity:minimal /nodeReuse:false /fileloggerparameters:Verbosity=diag;LogFile="%_buildlog%";Append %* %_buildpostfix%
+%_buildprefix% msbuild "%_buildproj%" /nologo /maxcpucount /verbosity:minimal /nodeReuse:false /fileloggerparameters:Verbosity=normal;LogFile="%_buildlog%";Append %* %_buildpostfix%
 set BUILDERRORLEVEL=%ERRORLEVEL%
 goto :eof
 

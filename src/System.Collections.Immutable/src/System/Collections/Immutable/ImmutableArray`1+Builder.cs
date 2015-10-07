@@ -87,7 +87,7 @@ namespace System.Collections.Immutable
             /// </summary>
             /// <remarks>
             /// If the value is decreased, the array contents are truncated.
-            /// If the value is increased, the added elements are initialized to <c>default(T)</c>.
+            /// If the value is increased, the added elements are initialized to the default value of type <typeparamref name="T"/>.
             /// </remarks>
             public int Count
             {
@@ -159,9 +159,9 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Gets a value indicating whether the <see cref="T:System.Collections.Generic.ICollection`1" /> is read-only.
+            /// Gets a value indicating whether the <see cref="ICollection{T}"/> is read-only.
             /// </summary>
-            /// <returns>true if the <see cref="T:System.Collections.Generic.ICollection`1" /> is read-only; otherwise, false.
+            /// <returns>true if the <see cref="ICollection{T}"/> is read-only; otherwise, false.
             ///   </returns>
             bool ICollection<T>.IsReadOnly
             {
@@ -202,7 +202,7 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Removes all items from the <see cref="T:System.Collections.Generic.ICollection`1" />.
+            /// Removes all items from the <see cref="ICollection{T}"/>.
             /// </summary>
             public void Clear()
             {
@@ -210,10 +210,10 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Inserts an item to the <see cref="T:System.Collections.Generic.IList`1" /> at the specified index.
+            /// Inserts an item to the <see cref="IList{T}"/> at the specified index.
             /// </summary>
-            /// <param name="index">The zero-based index at which <paramref name="item" /> should be inserted.</param>
-            /// <param name="item">The object to insert into the <see cref="T:System.Collections.Generic.IList`1" />.</param>
+            /// <param name="index">The zero-based index at which <paramref name="item"/> should be inserted.</param>
+            /// <param name="item">The object to insert into the <see cref="IList{T}"/>.</param>
             public void Insert(int index, T item)
             {
                 Requires.Range(index >= 0 && index <= this.Count, "index");
@@ -229,9 +229,9 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Adds an item to the <see cref="T:System.Collections.Generic.ICollection`1" />.
+            /// Adds an item to the <see cref="ICollection{T}"/>.
             /// </summary>
-            /// <param name="item">The object to add to the <see cref="T:System.Collections.Generic.ICollection`1" />.</param>
+            /// <param name="item">The object to add to the <see cref="ICollection{T}"/>.</param>
             public void Add(T item)
             {
                 this.EnsureCapacity(this.Count + 1);
@@ -269,11 +269,7 @@ namespace System.Collections.Immutable
                 var offset = this.Count;
                 this.Count += items.Length;
 
-                var nodes = _elements;
-                for (int i = 0; i < items.Length; i++)
-                {
-                    nodes[offset + i] = items[i];
-                }
+                Array.Copy(items, 0, _elements, offset, items.Length);
             }
 
             /// <summary>
@@ -287,11 +283,7 @@ namespace System.Collections.Immutable
                 var offset = this.Count;
                 this.Count += items.Length;
 
-                var nodes = _elements;
-                for (int i = 0; i < items.Length; i++)
-                {
-                    nodes[offset + i] = items[i];
-                }
+                Array.Copy(items, 0, _elements, offset, items.Length);
             }
 
             /// <summary>
@@ -302,16 +294,12 @@ namespace System.Collections.Immutable
             public void AddRange(T[] items, int length)
             {
                 Requires.NotNull(items, "items");
-                Requires.Range(length >= 0, "length");
+                Requires.Range(length >= 0 && length <= items.Length, "length");
 
                 var offset = this.Count;
                 this.Count += length;
 
-                var nodes = _elements;
-                for (int i = 0; i < length; i++)
-                {
-                    nodes[offset + i] = items[i];
-                }
+                Array.Copy(items, 0, _elements, offset, length);
             }
 
             /// <summary>
@@ -388,7 +376,7 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Removes the <see cref="T:System.Collections.Generic.IList`1" /> item at the specified index.
+            /// Removes the <see cref="IList{T}"/> item at the specified index.
             /// </summary>
             /// <param name="index">The zero-based index of the item to remove.</param>
             public void RemoveAt(int index)
@@ -404,11 +392,11 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Determines whether the <see cref="T:System.Collections.Generic.ICollection`1" /> contains a specific value.
+            /// Determines whether the <see cref="ICollection{T}"/> contains a specific value.
             /// </summary>
-            /// <param name="item">The object to locate in the <see cref="T:System.Collections.Generic.ICollection`1" />.</param>
+            /// <param name="item">The object to locate in the <see cref="ICollection{T}"/>.</param>
             /// <returns>
-            /// true if <paramref name="item" /> is found in the <see cref="T:System.Collections.Generic.ICollection`1" />; otherwise, false.
+            /// true if <paramref name="item"/> is found in the <see cref="ICollection{T}"/>; otherwise, false.
             /// </returns>
             public bool Contains(T item)
             {
@@ -420,14 +408,9 @@ namespace System.Collections.Immutable
             /// </summary>
             public T[] ToArray()
             {
-                var tmp = new T[this.Count];
-                var elements = _elements;
-                for (int i = 0; i < tmp.Length; i++)
-                {
-                    tmp[i] = elements[i];
-                }
-
-                return tmp;
+                T[] result = new T[this.Count];
+                Array.Copy(_elements, 0, result, 0, this.Count);
+                return result;
             }
 
             /// <summary>
@@ -456,11 +439,11 @@ namespace System.Collections.Immutable
             }
 
             /// <summary>
-            /// Determines the index of a specific item in the <see cref="T:System.Collections.Generic.IList`1" />.
+            /// Determines the index of a specific item in the <see cref="IList{T}"/>.
             /// </summary>
-            /// <param name="item">The object to locate in the <see cref="T:System.Collections.Generic.IList`1" />.</param>
+            /// <param name="item">The object to locate in the <see cref="IList{T}"/>.</param>
             /// <returns>
-            /// The index of <paramref name="item" /> if found in the list; otherwise, -1.
+            /// The index of <paramref name="item"/> if found in the list; otherwise, -1.
             /// </returns>
             [Pure]
             public int IndexOf(T item)
@@ -624,7 +607,21 @@ namespace System.Collections.Immutable
             /// </summary>
             public void Reverse()
             {
-                Array.Reverse(_elements, 0, _count);
+                // The non-generic Array.Reverse is not used because it does not perform
+                // well for non-primitive value types.
+                // If/when a generic Array.Reverse<T> becomes available, the below code
+                // can be deleted and replaced with a call to Array.Reverse<T>.
+                int i = 0;
+                int j = _count - 1;
+                T[] array = _elements;
+                while (i < j)
+                {
+                    T temp = array[i];
+                    array[i] = array[j];
+                    array[j] = temp;
+                    i++;
+                    j--;
+                }
             }
 
             /// <summary>
@@ -659,7 +656,7 @@ namespace System.Collections.Immutable
             public void Sort(int index, int count, IComparer<T> comparer)
             {
                 // Don't rely on Array.Sort's argument validation since our internal array may exceed
-                // the bounds of the publically addressable region.
+                // the bounds of the publicly addressable region.
                 Requires.Range(index >= 0, "index");
                 Requires.Range(count >= 0 && index + count <= this.Count, "count");
 
@@ -731,7 +728,7 @@ namespace System.Collections.Immutable
         /// </summary>
         private readonly ImmutableArray<T>.Builder _builder;
         /// <summary>
-        /// Initializes a new instance of the <see cref="ImmutableArrayBuilderDebuggerProxy&lt;T&gt;"/> class.
+        /// Initializes a new instance of the <see cref="ImmutableArrayBuilderDebuggerProxy{T}"/> class.
         /// </summary>
         /// <param name="builder">The collection to display in the debugger</param>
         public ImmutableArrayBuilderDebuggerProxy(ImmutableArray<T>.Builder builder)

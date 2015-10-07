@@ -83,7 +83,7 @@ namespace System.Threading.Tasks.Dataflow.Internal
 
         // *** These fields are mutated during execution.
 
-        /// <summary>Exceptions that may have occured and gone unhandled during processing.</summary>
+        /// <summary>Exceptions that may have occurred and gone unhandled during processing.</summary>
         private List<Exception> _exceptions;
         /// <summary>Whether to stop accepting new messages.</summary>
         private bool _decliningPermanently;
@@ -183,7 +183,7 @@ namespace System.Threading.Tasks.Dataflow.Internal
             }
         }
 
-        /// <include file='XmlDocs\CommonXmlDocComments.xml' path='CommonXmlDocComments/Targets/Member[@name="OfferMessage"]/*' />
+        /// <include file='XmlDocs/CommonXmlDocComments.xml' path='CommonXmlDocComments/Targets/Member[@name="OfferMessage"]/*' />
         internal DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, TInput messageValue, ISourceBlock<TInput> source, Boolean consumeToAccept)
         {
             // Validate arguments
@@ -244,7 +244,7 @@ namespace System.Threading.Tasks.Dataflow.Internal
             }
         }
 
-        /// <include file='XmlDocs\CommonXmlDocComments.xml' path='CommonXmlDocComments/Blocks/Member[@name="Completion"]/*' />
+        /// <include file='XmlDocs/CommonXmlDocComments.xml' path='CommonXmlDocComments/Blocks/Member[@name="Completion"]/*' />
         internal Task Completion { get { return _completionSource.Task; } }
 
         /// <summary>Gets the number of items waiting to be processed by this target.</summary>

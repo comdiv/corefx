@@ -9,15 +9,21 @@
     <OutputType>Library</OutputType>
     <AssemblyName>System.Xml.XmlDocument.Tests</AssemblyName>
     <RootNamespace>System.Xml.XmlDocument.UnitTests</RootNamespace>
-    <TestCategories>InnerLoop;OuterLoop</TestCategories>
+  </PropertyGroup>
+  <!-- Performance tests require v5.0 portable tools -->
+  <PropertyGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
   </PropertyGroup>
-  <!-- References are resolved from packages.config -->
   <ItemGroup>
+    <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
+      <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
+    </Compile>
     <Compile Include="XmlAttributeCollectionTests\AppendTests.cs" />
     <Compile Include="XmlAttributeCollectionTests\CollectionInterfaceTests.cs" />
     <Compile Include="XmlAttributeCollectionTests\CopyToTests.cs" />
@@ -102,11 +108,16 @@
     <Compile Include="XmlProcessingInstructionTests\TargetTests.cs" />
     <Compile Include="XmlTextTests\SplitTextTests.cs" />
   </ItemGroup>
+  <!-- Performance Tests -->
+  <ItemGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <Compile Include="Performance\Perf.XmlDocument.cs" />
+    <Compile Include="Performance\Perf.XmlNode.cs" />
+    <Compile Include="Performance\Perf.XmlNodeList.cs" />
+    <Compile Include="$(CommonTestPath)\Performance\PerfUtils.cs">
+      <Link>Common\Performance\PerfUtils.cs</Link>
+    </Compile>
+  </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj">
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project>
-      <Name>XunitTraitsDiscoverers</Name>
-    </ProjectReference>
     <ProjectReference Include="..\src\System.Xml.XmlDocument.csproj">
       <Project>{16EE5522-F387-4C9E-9EF2-B5134B043F37}</Project>
       <Name>System.Xml.XmlDocument</Name>
@@ -116,7 +127,7 @@
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

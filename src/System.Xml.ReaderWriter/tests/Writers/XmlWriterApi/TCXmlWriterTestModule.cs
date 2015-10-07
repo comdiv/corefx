@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Xml;
-using System.Text;
 using OLEDB.Test.ModuleCore;
-using XmlCoreTest.Common;
 using Xunit;
 
-namespace XmlWriterAPI.Test
+namespace System.Xml.Tests
 {
     public partial class XmlWriterTestModule : CTestModule
     {
@@ -100,6 +96,7 @@ namespace XmlWriterAPI.Test
 
         [Fact]
         [OuterLoop]
+        [ActiveIssue(1491)]
         static public void TCFullEndElement()
         {
             RunTest(() => new TCFullEndElement() { Attribute = new TestCase() { Name = "WriteFullEndElement" } });

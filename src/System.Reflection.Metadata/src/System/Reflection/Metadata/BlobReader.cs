@@ -38,7 +38,7 @@ namespace System.Reflection.Metadata
             // the reader performs little-endian specific operations
             if (!BitConverter.IsLittleEndian)
             {
-                throw new PlatformNotSupportedException(MetadataResources.LitteEndianArchitectureRequired);
+                throw new PlatformNotSupportedException(SR.LitteEndianArchitectureRequired);
             }
 
             this = new BlobReader(new MemoryBlock(buffer, length));
@@ -128,7 +128,7 @@ namespace System.Reflection.Metadata
         {
             if (!TryAlign(alignment))
             {
-                ThrowOutOfBounds();
+                Throw.OutOfBounds();
             }
         }
 
@@ -160,18 +160,12 @@ namespace System.Reflection.Metadata
 
         #region Bounds Checking
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowOutOfBounds()
-        {
-            throw new BadImageFormatException(MetadataResources.OutOfBoundsRead);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckBounds(int offset, int byteCount)
         {
             if (unchecked((ulong)(uint)offset + (uint)byteCount) > (ulong)(_endPointer - _currentPointer))
             {
-                ThrowOutOfBounds();
+                Throw.OutOfBounds();
             }
         }
 
@@ -180,7 +174,7 @@ namespace System.Reflection.Metadata
         {
             if (unchecked((uint)byteCount) > (_endPointer - _currentPointer))
             {
-                ThrowOutOfBounds();
+                Throw.OutOfBounds();
             }
         }
 
@@ -191,7 +185,7 @@ namespace System.Reflection.Metadata
 
             if (unchecked((uint)length) > (uint)(_endPointer - p))
             {
-                ThrowOutOfBounds();
+                Throw.OutOfBounds();
             }
 
             _currentPointer = p + length;
@@ -205,7 +199,7 @@ namespace System.Reflection.Metadata
 
             if (p == _endPointer)
             {
-                ThrowOutOfBounds();
+                Throw.OutOfBounds();
             }
 
             _currentPointer = p + 1;
@@ -359,7 +353,7 @@ namespace System.Reflection.Metadata
             int value;
             if (!TryReadCompressedInteger(out value))
             {
-                ThrowInvalidCompressedInteger();
+                Throw.InvalidCompressedInteger();
             }
             return value;
         }
@@ -415,30 +409,19 @@ namespace System.Reflection.Metadata
             int value;
             if (!TryReadCompressedSignedInteger(out value))
             {
-                ThrowInvalidCompressedInteger();
+                Throw.InvalidCompressedInteger();
             }
             return value;
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowInvalidCompressedInteger()
-        {
-            throw new BadImageFormatException(MetadataResources.InvalidCompressedInteger);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowInvalidSerializedString()
-        {
-            throw new BadImageFormatException(MetadataResources.InvalidSerializedString);
         }
 
         /// <summary>
         /// Reads type code encoded in a serialized custom attribute value. 
         /// </summary>
+        /// <returns><see cref="SerializationTypeCode.Invalid"/> if the encoding is invalid.</returns>
         public SerializationTypeCode ReadSerializationTypeCode()
         {
             int value = ReadCompressedIntegerOrInvalid();
-            if (value > Byte.MaxValue)
+            if (value > byte.MaxValue)
             {
                 return SerializationTypeCode.Invalid;
             }
@@ -449,6 +432,7 @@ namespace System.Reflection.Metadata
         /// <summary>
         /// Reads type code encoded in a signature. 
         /// </summary>
+        /// <returns><see cref="SignatureTypeCode.Invalid"/> if the encoding is invalid.</returns>
         public SignatureTypeCode ReadSignatureTypeCode()
         {
             int value = ReadCompressedIntegerOrInvalid();
@@ -460,7 +444,7 @@ namespace System.Reflection.Metadata
                     return SignatureTypeCode.TypeHandle;
 
                 default:
-                    if (value > Byte.MaxValue)
+                    if (value > byte.MaxValue)
                     {
                         return SignatureTypeCode.Invalid;
                     }
@@ -475,6 +459,7 @@ namespace System.Reflection.Metadata
         /// </summary>
         /// <remarks>Defined as a 'SerString' in the Ecma CLI specification.</remarks>
         /// <returns>String value or null.</returns>
+        /// <exception cref="BadImageFormatException">If the encoding is invalid.</exception>
         public string ReadSerializedString()
         {
             int length;
@@ -487,27 +472,27 @@ namespace System.Reflection.Metadata
 
             if (ReadByte() != 0xFF)
             {
-                ThrowInvalidSerializedString();
+                Throw.InvalidSerializedString();
             }
 
             return null;
         }
 
         /// <summary>
-        /// Reads a type handle encoded in a signature as (CLASS | VALUETYPE) TypeDefOrRefOrSpecEncoded. 
+        /// Reads a type handle encoded in a signature as TypeDefOrRefOrSpecEncoded (see ECMA-335 II.23.2.8).
         /// </summary>
         /// <returns>The handle or nil if the encoding is invalid.</returns>
-        public Handle ReadTypeHandle()
+        public EntityHandle ReadTypeHandle()
         {
             uint value = (uint)ReadCompressedIntegerOrInvalid();
             uint tokenType = s_corEncodeTokenArray[value & 0x3];
 
             if (value == InvalidCompressedInteger || tokenType == 0)
             {
-                return default(Handle);
+                return default(EntityHandle);
             }
 
-            return new Handle(tokenType | (value >> 2));
+            return new EntityHandle(tokenType | (value >> 2));
         }
 
         private static readonly uint[] s_corEncodeTokenArray = new uint[] { TokenTypeIds.TypeDef, TokenTypeIds.TypeRef, TokenTypeIds.TypeSpec, 0 };

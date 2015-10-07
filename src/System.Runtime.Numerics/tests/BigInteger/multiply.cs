@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Tools;
 using Xunit;
 
 namespace System.Numerics.Tests
@@ -18,6 +17,13 @@ namespace System.Numerics.Tests
             byte[] tempByteArray1 = new byte[0];
             byte[] tempByteArray2 = new byte[0];
 
+            // Multiply Method - One Large BigInteger
+            for (int i = 0; i < s_samples; i++)
+            {
+                tempByteArray1 = GetRandomByteArray(random);
+                VerifyMultiplyString(Print(tempByteArray1) + "uMultiply");
+            }
+
             // Multiply Method - Two Large BigIntegers
             for (int i = 0; i < s_samples; i++)
             {
@@ -25,6 +31,22 @@ namespace System.Numerics.Tests
                 tempByteArray2 = GetRandomByteArray(random);
                 VerifyMultiplyString(Print(tempByteArray1) + Print(tempByteArray2) + "bMultiply");
             }
+        }
+
+        [Fact]
+        public static void RunMultiply_TwoLargeBigIntegers_Threshold()
+        {
+            // Again, with lower threshold
+            BigIntTools.Utils.RunWithFakeThreshold("SquareThreshold", 8, () =>
+                BigIntTools.Utils.RunWithFakeThreshold("MultiplyThreshold", 8, RunMultiply_TwoLargeBigIntegers)
+            );
+
+            // Again, with lower threshold
+            BigIntTools.Utils.RunWithFakeThreshold("SquareThreshold", 8, () =>
+                BigIntTools.Utils.RunWithFakeThreshold("MultiplyThreshold", 8, () =>
+                    BigIntTools.Utils.RunWithFakeThreshold("AllocationThreshold", 8, RunMultiply_TwoLargeBigIntegers)
+                )
+            );
         }
 
         [Fact]

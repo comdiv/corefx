@@ -40,7 +40,7 @@ namespace System.Diagnostics
             ProcessInfo[] processInfos = ProcessManager.GetProcessInfos(machineName);
             foreach (ProcessInfo processInfo in processInfos)
             {
-                if (processInfo._processId == processId)
+                if (processInfo.ProcessId == processId)
                 {
                     return processInfo;
                 }
@@ -229,7 +229,6 @@ namespace System.Diagnostics
         static NtProcessManager()
         {
             s_valueIds = new Dictionary<String, ValueId>();
-            s_valueIds.Add("Handle Count", ValueId.HandleCount);
             s_valueIds.Add("Pool Paged Bytes", ValueId.PoolPagedBytes);
             s_valueIds.Add("Pool Nonpaged Bytes", ValueId.PoolNonpagedBytes);
             s_valueIds.Add("Elapsed Time", ValueId.ElapsedTime);
@@ -265,7 +264,7 @@ namespace System.Diagnostics
             ProcessInfo[] infos = GetProcessInfos(machineName, isRemoteMachine);
             int[] ids = new int[infos.Length];
             for (int i = 0; i < infos.Length; i++)
-                ids[i] = infos[i]._processId;
+                ids[i] = infos[i].ProcessId;
             return ids;
         }
 
@@ -285,7 +284,7 @@ namespace System.Diagnostics
                 break;
             }
             int[] ids = new int[size / 4];
-            Array.Copy(processIds, ids, ids.Length);
+            Array.Copy(processIds, 0, ids, 0, ids.Length);
             return ids;
         }
 
@@ -411,65 +410,70 @@ namespace System.Diagnostics
                     if (moduleCount <= moduleHandles.Length) break;
                     moduleHandles = new IntPtr[moduleHandles.Length * 2];
                 }
-                List<ModuleInfo> moduleInfos = new List<ModuleInfo>();
 
-                int ret;
+                List<ModuleInfo> moduleInfos = new List<ModuleInfo>(firstModuleOnly ? 1 : moduleCount);
+                StringBuilder baseName = new StringBuilder(1024);
+                StringBuilder fileName = new StringBuilder(1024);
+
                 for (int i = 0; i < moduleCount; i++)
                 {
-                    try
+                    if (i > 0)
                     {
-                        ModuleInfo moduleInfo = new ModuleInfo();
-                        IntPtr moduleHandle = moduleHandles[i];
-                        Interop.mincore.NtModuleInfo ntModuleInfo = new Interop.mincore.NtModuleInfo();
-                        if (!Interop.mincore.GetModuleInformation(processHandle, moduleHandle, ntModuleInfo, Marshal.SizeOf(ntModuleInfo)))
-                            throw new Win32Exception();
-                        moduleInfo._sizeOfImage = ntModuleInfo.SizeOfImage;
-                        moduleInfo._entryPoint = ntModuleInfo.EntryPoint;
-                        moduleInfo._baseOfDll = ntModuleInfo.BaseOfDll;
-
-                        StringBuilder baseName = new StringBuilder(1024);
-                        ret = Interop.mincore.GetModuleBaseName(processHandle, moduleHandle, baseName, baseName.Capacity * 2);
-                        if (ret == 0) throw new Win32Exception();
-                        moduleInfo._baseName = baseName.ToString();
-
-                        StringBuilder fileName = new StringBuilder(1024);
-                        ret = Interop.mincore.GetModuleFileNameEx(processHandle, moduleHandle, fileName, fileName.Capacity * 2);
-                        if (ret == 0) throw new Win32Exception();
-                        moduleInfo._fileName = fileName.ToString();
-
-                        if (moduleInfo._fileName != null
-                            && moduleInfo._fileName.Length >= 4
-                            && moduleInfo._fileName.StartsWith(@"\\?\", StringComparison.Ordinal))
+                        // If the user is only interested in the main module, break now.
+                        // This avoid some waste of time. In addition, if the application unloads a DLL
+                        // we will not get an exception. 
+                        if (firstModuleOnly)
                         {
-                            moduleInfo._fileName = moduleInfo._fileName.Substring(4);
+                            break;
                         }
 
-                        moduleInfos.Add(moduleInfo);
-                    }
-                    catch (Win32Exception e)
-                    {
-                        if (e.NativeErrorCode == Interop.mincore.Errors.ERROR_INVALID_HANDLE || e.NativeErrorCode == Interop.mincore.Errors.ERROR_PARTIAL_COPY)
-                        {
-                            // It's possible that another thread casued this module to become
-                            // unloaded (e.g FreeLibrary was called on the module).  Ignore it and
-                            // move on.
-                        }
-                        else
-                        {
-                            throw;
-                        }
+                        baseName.Clear();
+                        fileName.Clear();
                     }
 
-                    //
-                    // If the user is only interested in the main module, break now.
-                    // This avoid some waste of time. In addition, if the application unloads a DLL                     
-                    // we will not get an exception. 
-                    //
-                    if (firstModuleOnly) { break; }
+                    IntPtr moduleHandle = moduleHandles[i];
+                    Interop.mincore.NtModuleInfo ntModuleInfo = new Interop.mincore.NtModuleInfo();
+                    if (!Interop.mincore.GetModuleInformation(processHandle, moduleHandle, ntModuleInfo, Marshal.SizeOf(ntModuleInfo)))
+                    {
+                        HandleError();
+                        continue;
+                    }
+
+                    ModuleInfo moduleInfo = new ModuleInfo
+                    {
+                        _sizeOfImage = ntModuleInfo.SizeOfImage,
+                        _entryPoint = ntModuleInfo.EntryPoint,
+                        _baseOfDll = ntModuleInfo.BaseOfDll
+                    };
+
+                    int ret = Interop.mincore.GetModuleBaseName(processHandle, moduleHandle, baseName, baseName.Capacity);
+                    if (ret == 0)
+                    {
+                        HandleError();
+                        continue;
+                    }
+
+                    moduleInfo._baseName = baseName.ToString();
+
+                    ret = Interop.mincore.GetModuleFileNameEx(processHandle, moduleHandle, fileName, fileName.Capacity);
+                    if (ret == 0)
+                    {
+                        HandleError();
+                        continue;
+                    }
+
+                    moduleInfo._fileName = fileName.ToString();
+
+                    if (moduleInfo._fileName != null && moduleInfo._fileName.Length >= 4
+                        && moduleInfo._fileName.StartsWith(@"\\?\", StringComparison.Ordinal))
+                    {
+                        moduleInfo._fileName = fileName.ToString(4, fileName.Length - 4);
+                    }
+
+                    moduleInfos.Add(moduleInfo);
                 }
-                ModuleInfo[] temp = new ModuleInfo[moduleInfos.Count];
-                moduleInfos.CopyTo(temp, 0);
-                return temp;
+
+                return moduleInfos.ToArray();
             }
             finally
             {
@@ -480,6 +484,22 @@ namespace System.Diagnostics
                 {
                     processHandle.Dispose();
                 }
+            }
+        }
+
+        private static void HandleError()
+        {
+            int lastError = Marshal.GetLastWin32Error();
+            switch (lastError)
+            {
+                case Interop.mincore.Errors.ERROR_INVALID_HANDLE:
+                case Interop.mincore.Errors.ERROR_PARTIAL_COPY:
+                    // It's possible that another thread casued this module to become
+                    // unloaded (e.g FreeLibrary was called on the module).  Ignore it and
+                    // move on.
+                    break;
+                default:
+                    throw new Win32Exception(lastError);
             }
         }
 
@@ -584,8 +604,9 @@ namespace System.Diagnostics
                         counterList.Add(counter);
                         counterPtr = (IntPtr)((long)counterPtr + counter.ByteLength);
                     }
-                    Interop.mincore.PERF_COUNTER_DEFINITION[] counters = new Interop.mincore.PERF_COUNTER_DEFINITION[counterList.Count];
-                    counterList.CopyTo(counters, 0);
+
+                    Interop.mincore.PERF_COUNTER_DEFINITION[] counters = counterList.ToArray();
+
                     for (int j = 0; j < type.NumInstances; j++)
                     {
                         Marshal.PtrToStructure(instancePtr, instance);
@@ -597,7 +618,7 @@ namespace System.Diagnostics
                         if (type.ObjectNameTitleIndex == processIndex)
                         {
                             ProcessInfo processInfo = GetProcessInfo(type, (IntPtr)((long)instancePtr + instance.ByteLength), counters);
-                            if (processInfo._processId == 0 && string.Compare(instanceName, "Idle", StringComparison.OrdinalIgnoreCase) != 0)
+                            if (processInfo.ProcessId == 0 && string.Compare(instanceName, "Idle", StringComparison.OrdinalIgnoreCase) != 0)
                             {
                                 // Sometimes we'll get a process structure that is not completely filled in.
                                 // We can catch some of these by looking for non-"idle" processes that have id 0
@@ -608,7 +629,7 @@ namespace System.Diagnostics
                             }
                             else
                             {
-                                if (processInfos.ContainsKey(processInfo._processId))
+                                if (processInfos.ContainsKey(processInfo.ProcessId))
                                 {
                                     // We've found two entries in the perfcounters that claim to be the
                                     // same process.  We throw an exception.  Is this really going to be
@@ -629,8 +650,8 @@ namespace System.Diagnostics
                                         else if (instanceName.EndsWith(".e", StringComparison.Ordinal)) processName = instanceName.Substring(0, 13);
                                         else if (instanceName.EndsWith(".ex", StringComparison.Ordinal)) processName = instanceName.Substring(0, 12);
                                     }
-                                    processInfo._processName = processName;
-                                    processInfos.Add(processInfo._processId, processInfo);
+                                    processInfo.ProcessName = processName;
+                                    processInfos.Add(processInfo.ProcessId, processInfo);
                                 }
                             }
                         }
@@ -678,7 +699,7 @@ namespace System.Diagnostics
                         threadInfo._processId = (int)value;
                         break;
                     case ValueId.ThreadId:
-                        threadInfo._threadId = (int)value;
+                        threadInfo._threadId = (ulong)value;
                         break;
                     case ValueId.BasePriority:
                         threadInfo._basePriority = (int)value;
@@ -739,40 +760,37 @@ namespace System.Diagnostics
                 switch ((ValueId)counter.CounterNameTitlePtr)
                 {
                     case ValueId.ProcessId:
-                        processInfo._processId = (int)value;
-                        break;
-                    case ValueId.HandleCount:
-                        processInfo._handleCount = (int)value;
+                        processInfo.ProcessId = (int)value;
                         break;
                     case ValueId.PoolPagedBytes:
-                        processInfo._poolPagedBytes = value;
+                        processInfo.PoolPagedBytes = value;
                         break;
                     case ValueId.PoolNonpagedBytes:
-                        processInfo._poolNonpagedBytes = value;
+                        processInfo.PoolNonPagedBytes = value;
                         break;
                     case ValueId.VirtualBytes:
-                        processInfo._virtualBytes = value;
+                        processInfo.VirtualBytes = value;
                         break;
                     case ValueId.VirtualBytesPeak:
-                        processInfo._virtualBytesPeak = value;
+                        processInfo.VirtualBytesPeak = value;
                         break;
                     case ValueId.WorkingSetPeak:
-                        processInfo._workingSetPeak = value;
+                        processInfo.WorkingSetPeak = value;
                         break;
                     case ValueId.WorkingSet:
-                        processInfo._workingSet = value;
+                        processInfo.WorkingSet = value;
                         break;
                     case ValueId.PageFileBytesPeak:
-                        processInfo._pageFileBytesPeak = value;
+                        processInfo.PageFileBytesPeak = value;
                         break;
                     case ValueId.PageFileBytes:
-                        processInfo._pageFileBytes = value;
+                        processInfo.PageFileBytes = value;
                         break;
                     case ValueId.PrivateBytes:
-                        processInfo._privateBytes = value;
+                        processInfo.PrivateBytes = value;
                         break;
                     case ValueId.BasePriority:
-                        processInfo._basePriority = (int)value;
+                        processInfo.BasePriority = (int)value;
                         break;
                 }
             }
@@ -802,7 +820,6 @@ namespace System.Diagnostics
         enum ValueId
         {
             Unknown = -1,
-            HandleCount,
             PoolPagedBytes,
             PoolNonpagedBytes,
             ElapsedTime,
@@ -949,45 +966,44 @@ namespace System.Diagnostics
                 // get information for a process
                 ProcessInfo processInfo = new ProcessInfo();
                 // Process ID shouldn't overflow. OS API GetCurrentProcessID returns DWORD.
-                processInfo._processId = pi.UniqueProcessId.ToInt32();
-                processInfo._handleCount = (int)pi.HandleCount;
-                processInfo._sessionId = (int)pi.SessionId;
-                processInfo._poolPagedBytes = (long)pi.QuotaPagedPoolUsage; ;
-                processInfo._poolNonpagedBytes = (long)pi.QuotaNonPagedPoolUsage;
-                processInfo._virtualBytes = (long)pi.VirtualSize;
-                processInfo._virtualBytesPeak = (long)pi.PeakVirtualSize;
-                processInfo._workingSetPeak = (long)pi.PeakWorkingSetSize;
-                processInfo._workingSet = (long)pi.WorkingSetSize;
-                processInfo._pageFileBytesPeak = (long)pi.PeakPagefileUsage;
-                processInfo._pageFileBytes = (long)pi.PagefileUsage;
-                processInfo._privateBytes = (long)pi.PrivatePageCount;
-                processInfo._basePriority = pi.BasePriority;
+                processInfo.ProcessId = pi.UniqueProcessId.ToInt32();
+                processInfo.SessionId = (int)pi.SessionId;
+                processInfo.PoolPagedBytes = (long)pi.QuotaPagedPoolUsage; ;
+                processInfo.PoolNonPagedBytes = (long)pi.QuotaNonPagedPoolUsage;
+                processInfo.VirtualBytes = (long)pi.VirtualSize;
+                processInfo.VirtualBytesPeak = (long)pi.PeakVirtualSize;
+                processInfo.WorkingSetPeak = (long)pi.PeakWorkingSetSize;
+                processInfo.WorkingSet = (long)pi.WorkingSetSize;
+                processInfo.PageFileBytesPeak = (long)pi.PeakPagefileUsage;
+                processInfo.PageFileBytes = (long)pi.PagefileUsage;
+                processInfo.PrivateBytes = (long)pi.PrivatePageCount;
+                processInfo.BasePriority = pi.BasePriority;
 
 
                 if (pi.NamePtr == IntPtr.Zero)
                 {
-                    if (processInfo._processId == NtProcessManager.SystemProcessID)
+                    if (processInfo.ProcessId == NtProcessManager.SystemProcessID)
                     {
-                        processInfo._processName = "System";
+                        processInfo.ProcessName = "System";
                     }
-                    else if (processInfo._processId == NtProcessManager.IdleProcessID)
+                    else if (processInfo.ProcessId == NtProcessManager.IdleProcessID)
                     {
-                        processInfo._processName = "Idle";
+                        processInfo.ProcessName = "Idle";
                     }
                     else
                     {
                         // for normal process without name, using the process ID. 
-                        processInfo._processName = processInfo._processId.ToString(CultureInfo.InvariantCulture);
+                        processInfo.ProcessName = processInfo.ProcessId.ToString(CultureInfo.InvariantCulture);
                     }
                 }
                 else
                 {
                     string processName = GetProcessShortName(Marshal.PtrToStringUni(pi.NamePtr, pi.NameLength / sizeof(char)));
-                    processInfo._processName = processName;
+                    processInfo.ProcessName = processName;
                 }
 
                 // get the threads for current process
-                processInfos[processInfo._processId] = processInfo;
+                processInfos[processInfo.ProcessId] = processInfo;
 
                 currentPtr = (IntPtr)((long)currentPtr + Marshal.SizeOf(pi));
                 int i = 0;
@@ -998,7 +1014,7 @@ namespace System.Diagnostics
                     ThreadInfo threadInfo = new ThreadInfo();
 
                     threadInfo._processId = (int)ti.UniqueProcess;
-                    threadInfo._threadId = (int)ti.UniqueThread;
+                    threadInfo._threadId = (ulong)ti.UniqueThread;
                     threadInfo._basePriority = ti.BasePriority;
                     threadInfo._currentPriority = ti.Priority;
                     threadInfo._startAddress = ti.StartAddress;

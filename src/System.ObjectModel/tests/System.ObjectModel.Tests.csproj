@@ -14,8 +14,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(CommonTestPath)\Collections\IEnumerableTest.cs">
+      <Link>Common\Collections\IEnumerableTest.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\Collections\ICollectionTest.cs">
+      <Link>Common\Collections\ICollectionTest.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\Collections\IListTest.cs">
+      <Link>Common\Collections\IListTest.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\Collections\Utils.cs">
+      <Link>Common\Collections\Utils.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
+      <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
+    </Compile>
     <Compile Include="ComponentModel\INotifyPropertyChangingTests.cs" />
     <Compile Include="ComponentModel\PropertyChangingEventArgsTests.cs" />
+    <Compile Include="KeyedCollection\TestMethods.cs" />
+    <Compile Include="KeyedCollection\ConcreteTestClasses.cs" />
+    <Compile Include="KeyedCollection\Utils.cs" />
     <Compile Include="ObservableCollection\ObservableCollection_ConstructorAndPropertyTests.cs" />
     <Compile Include="ObservableCollection\ObservableCollection_MethodsTest.cs" />
     <Compile Include="ReadOnlyDictionary\ReadOnlyDictionaryTests.cs" />
@@ -32,7 +50,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

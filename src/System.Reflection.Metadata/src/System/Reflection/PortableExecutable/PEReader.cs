@@ -140,7 +140,7 @@ namespace System.Reflection.PortableExecutable
 
             if (!peStream.CanRead || !peStream.CanSeek)
             {
-                throw new ArgumentException(MetadataResources.StreamMustSupportReadAndSeek, "peStream");
+                throw new ArgumentException(SR.StreamMustSupportReadAndSeek, "peStream");
             }
 
             if (!options.IsValid())
@@ -216,8 +216,8 @@ namespace System.Reflection.PortableExecutable
         /// Disposes all memory allocated by the reader.
         /// </summary>
         /// <remarks>
-        /// <see cref="Dispose"/>  can be called multiple times (even in parallel). 
-        /// However, it is not safe to call <see cref="Dispose"/> in parallel with any other operation on the <see cref="PEReader"/>
+        /// <see cref="Dispose"/>  can be called multiple times (but not in parallel).
+        /// It is not safe to call <see cref="Dispose"/> in parallel with any other operation on the <see cref="PEReader"/>
         /// or reading from <see cref="PEMemoryBlock"/>s retrieved from the reader.
         /// </remarks>
         public void Dispose()
@@ -315,7 +315,7 @@ namespace System.Reflection.PortableExecutable
             {
                 if (_peImage == null)
                 {
-                    throw new InvalidOperationException(MetadataResources.PEImageNotAvailable);
+                    throw new InvalidOperationException(SR.PEImageNotAvailable);
                 }
 
                 var newBlock = _peImage.GetMemoryBlock();
@@ -333,7 +333,7 @@ namespace System.Reflection.PortableExecutable
         {
             if (!HasMetadata)
             {
-                throw new InvalidOperationException(MetadataResources.PEImageDoesNotHaveMetadata);
+                throw new InvalidOperationException(SR.PEImageDoesNotHaveMetadata);
             }
 
             if (_lazyMetadataBlock == null)

@@ -1,13 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
 using System.Threading;
 using Xunit;
 
-namespace System.Runtime.Tests
+namespace System.Tests
 {
-    public static class LazyInitializerTests
+    public static class LazyTests
     {
         [Fact]
         public static void TestConstructor()

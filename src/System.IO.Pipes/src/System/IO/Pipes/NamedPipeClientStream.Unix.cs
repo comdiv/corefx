@@ -16,6 +16,11 @@ namespace System.IO.Pipes
         [SecurityCritical]
         private bool TryConnect(int timeout, CancellationToken cancellationToken)
         {
+            // timeout and cancellationToken are currently ignored: [ActiveIssue(812, PlatformID.AnyUnix)]
+            // We should figure out if there's a good way to cancel calls to Open, such as
+            // by sending a signal that causes an EINTR, and then in handling the EINTR result
+            // poll the cancellationToken to see if cancellation was requested.
+
             try
             {
                 // Open the file.  For In or Out, this will block until a client has connected.
@@ -24,7 +29,7 @@ namespace System.IO.Pipes
                 var clientHandle = Microsoft.Win32.SafeHandles.SafePipeHandle.Open(
                     _normalizedPipePath, 
                     TranslateFlags(_direction, _pipeOptions, _inheritability),
-                    (int)Interop.libc.Permissions.S_IRWXU);
+                    (int)Interop.Sys.Permissions.S_IRWXU);
 
                 // Pipe successfully opened.  Store our client handle.
                 InitializeHandle(clientHandle, isExposed: false, isAsync: (_pipeOptions & PipeOptions.Asynchronous) != 0);

@@ -14,17 +14,15 @@ namespace System.Linq
         {
             if (source == null)
                 throw Error.ArgumentNull("source");
-            if (source is IQueryable<TElement>)
-                return (IQueryable<TElement>)source;
-            return new EnumerableQuery<TElement>(source);
+            return source as IQueryable<TElement> ?? new EnumerableQuery<TElement>(source);
         }
 
         public static IQueryable AsQueryable(this IEnumerable source)
         {
             if (source == null)
                 throw Error.ArgumentNull("source");
-            if (source is IQueryable)
-                return (IQueryable)source;
+            IQueryable queryable = source as IQueryable;
+            if (queryable != null) return queryable;
             Type enumType = TypeHelper.FindGenericType(typeof(IEnumerable<>), source.GetType());
             if (enumType == null)
                 throw Error.ArgumentNotIEnumerableGeneric("source");
@@ -40,7 +38,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Where(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.Where(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -54,7 +54,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Where(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.Where(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -66,7 +68,8 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.OfType<TResult>(source)),
+                    GetMethodInfoOf(() => Queryable.OfType<TResult>(
+                        default(IQueryable))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -78,7 +81,8 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Cast<TResult>(source)),
+                    GetMethodInfoOf(() => Queryable.Cast<TResult>(
+                        default(IQueryable))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -92,7 +96,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Select(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Select(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -106,7 +112,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Select(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Select(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -120,7 +128,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SelectMany(source, selector)),
+                    GetMethodInfoOf(() => Queryable.SelectMany(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, IEnumerable<TResult>>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -134,7 +144,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SelectMany(source, selector)),
+                    GetMethodInfoOf(() => Queryable.SelectMany(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int, IEnumerable<TResult>>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -150,7 +162,10 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SelectMany(source, collectionSelector, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.SelectMany(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int, IEnumerable<TCollection>>>),
+                        default(Expression<Func<TSource, TCollection, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(collectionSelector), Expression.Quote(resultSelector) }
                     ));
         }
@@ -166,7 +181,10 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SelectMany(source, collectionSelector, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.SelectMany(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, IEnumerable<TCollection>>>),
+                        default(Expression<Func<TSource, TCollection, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(collectionSelector), Expression.Quote(resultSelector) }
                     ));
         }
@@ -193,7 +211,12 @@ namespace System.Linq
             return outer.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Join(outer, inner, outerKeySelector, innerKeySelector, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.Join(
+                        default(IQueryable<TOuter>),
+                        default(IEnumerable<TInner>),
+                        default(Expression<Func<TOuter, TKey>>),
+                        default(Expression<Func<TInner, TKey>>),
+                        default(Expression<Func<TOuter, TInner, TResult>>))),
                     new Expression[] {
                         outer.Expression,
                         GetSourceExpression(inner),
@@ -219,7 +242,13 @@ namespace System.Linq
             return outer.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Join(outer, inner, outerKeySelector, innerKeySelector, resultSelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.Join(
+                        default(IQueryable<TOuter>),
+                        default(IEnumerable<TInner>),
+                        default(Expression<Func<TOuter, TKey>>),
+                        default(Expression<Func<TInner, TKey>>),
+                        default(Expression<Func<TOuter, TInner, TResult>>),
+                        default(IEqualityComparer<TKey>))),
                     new Expression[] {
                         outer.Expression,
                         GetSourceExpression(inner),
@@ -246,7 +275,12 @@ namespace System.Linq
             return outer.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupJoin(outer, inner, outerKeySelector, innerKeySelector, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.GroupJoin(
+                        default(IQueryable<TOuter>),
+                        default(IEnumerable<TInner>),
+                        default(Expression<Func<TOuter, TKey>>),
+                        default(Expression<Func<TInner, TKey>>),
+                        default(Expression<Func<TOuter, IEnumerable<TInner>, TResult>>))),
                     new Expression[] {
                         outer.Expression,
                         GetSourceExpression(inner),
@@ -271,7 +305,13 @@ namespace System.Linq
             return outer.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupJoin(outer, inner, outerKeySelector, innerKeySelector, resultSelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.GroupJoin(
+                        default(IQueryable<TOuter>),
+                        default(IEnumerable<TInner>),
+                        default(Expression<Func<TOuter, TKey>>),
+                        default(Expression<Func<TInner, TKey>>),
+                        default(Expression<Func<TOuter, IEnumerable<TInner>, TResult>>),
+                        default(IEqualityComparer<TKey>))),
                     new Expression[] {
                         outer.Expression,
                         GetSourceExpression(inner),
@@ -291,7 +331,9 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.OrderBy(source, keySelector)),
+                    GetMethodInfoOf(() => Queryable.OrderBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector) }
                     ));
         }
@@ -305,7 +347,10 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.OrderBy(source, keySelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.OrderBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(IComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Constant(comparer, typeof(IComparer<TKey>)) }
                     ));
         }
@@ -319,7 +364,9 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.OrderByDescending(source, keySelector)),
+                    GetMethodInfoOf(() => Queryable.OrderByDescending(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector) }
                     ));
         }
@@ -333,7 +380,10 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.OrderByDescending(source, keySelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.OrderByDescending(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(IComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Constant(comparer, typeof(IComparer<TKey>)) }
                     ));
         }
@@ -347,7 +397,9 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.ThenBy(source, keySelector)),
+                    GetMethodInfoOf(() => Queryable.ThenBy(
+                        default(IOrderedQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector) }
                     ));
         }
@@ -361,7 +413,10 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.ThenBy(source, keySelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.ThenBy(
+                        default(IOrderedQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(IComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Constant(comparer, typeof(IComparer<TKey>)) }
                     ));
         }
@@ -375,7 +430,9 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.ThenByDescending(source, keySelector)),
+                    GetMethodInfoOf(() => Queryable.ThenByDescending(
+                        default(IOrderedQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector) }
                     ));
         }
@@ -389,7 +446,10 @@ namespace System.Linq
             return (IOrderedQueryable<TSource>)source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.ThenByDescending(source, keySelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.ThenByDescending(
+                        default(IOrderedQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(IComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Constant(comparer, typeof(IComparer<TKey>)) }
                     ));
         }
@@ -401,7 +461,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Take(source, count)),
+                    GetMethodInfoOf(() => Queryable.Take(
+                        default(IQueryable<TSource>),
+                        default(int))),
                     new Expression[] { source.Expression, Expression.Constant(count) }
                     ));
         }
@@ -415,7 +477,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.TakeWhile(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.TakeWhile(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -429,7 +493,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.TakeWhile(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.TakeWhile(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -441,7 +507,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Skip(source, count)),
+                    GetMethodInfoOf(() => Queryable.Skip(
+                        default(IQueryable<TSource>),
+                        default(int))),
                     new Expression[] { source.Expression, Expression.Constant(count) }
                     ));
         }
@@ -455,7 +523,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SkipWhile(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.SkipWhile(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -469,7 +539,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SkipWhile(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.SkipWhile(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -483,7 +555,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<IGrouping<TKey, TSource>>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector) }
                     ));
         }
@@ -499,7 +573,10 @@ namespace System.Linq
             return source.Provider.CreateQuery<IGrouping<TKey, TElement>>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, elementSelector)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(Expression<Func<TSource, TElement>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Quote(elementSelector) }
                     ));
         }
@@ -513,7 +590,10 @@ namespace System.Linq
             return source.Provider.CreateQuery<IGrouping<TKey, TSource>>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(IEqualityComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Constant(comparer, typeof(IEqualityComparer<TKey>)) }
                     ));
         }
@@ -529,7 +609,11 @@ namespace System.Linq
             return source.Provider.CreateQuery<IGrouping<TKey, TElement>>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, elementSelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(Expression<Func<TSource, TElement>>),
+                        default(IEqualityComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Quote(elementSelector), Expression.Constant(comparer, typeof(IEqualityComparer<TKey>)) }
                     ));
         }
@@ -547,7 +631,11 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, elementSelector, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(Expression<Func<TSource, TElement>>),
+                        default(Expression<Func<TKey, IEnumerable<TElement>, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Quote(elementSelector), Expression.Quote(resultSelector) }
                     ));
         }
@@ -563,7 +651,10 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(Expression<Func<TKey, IEnumerable<TSource>, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Quote(resultSelector) }
                     ));
         }
@@ -579,7 +670,11 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, resultSelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(Expression<Func<TKey, IEnumerable<TSource>, TResult>>),
+                        default(IEqualityComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Quote(resultSelector), Expression.Constant(comparer, typeof(IEqualityComparer<TKey>)) }
                     ));
         }
@@ -597,7 +692,12 @@ namespace System.Linq
             return source.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.GroupBy(source, keySelector, elementSelector, resultSelector, comparer)),
+                    GetMethodInfoOf(() => Queryable.GroupBy(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TKey>>),
+                        default(Expression<Func<TSource, TElement>>),
+                        default(Expression<Func<TKey, IEnumerable<TElement>, TResult>>),
+                        default(IEqualityComparer<TKey>))),
                     new Expression[] { source.Expression, Expression.Quote(keySelector), Expression.Quote(elementSelector), Expression.Quote(resultSelector), Expression.Constant(comparer, typeof(IEqualityComparer<TKey>)) }
                     ));
         }
@@ -609,7 +709,8 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Distinct(source)),
+                    GetMethodInfoOf(() => Queryable.Distinct(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -621,7 +722,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Distinct(source, comparer)),
+                    GetMethodInfoOf(() => Queryable.Distinct(
+                        default(IQueryable<TSource>),
+                        default(IEqualityComparer<TSource>))),
                     new Expression[] { source.Expression, Expression.Constant(comparer, typeof(IEqualityComparer<TSource>)) }
                     ));
         }
@@ -635,7 +738,9 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Concat(source1, source2)),
+                    GetMethodInfoOf(() => Queryable.Concat(
+                        default(IQueryable<TSource>),
+                        default(IQueryable<TSource>))),
                     new Expression[] { source1.Expression, GetSourceExpression(source2) }
                     ));
         }
@@ -651,7 +756,10 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Zip(source1, source2, resultSelector)),
+                    GetMethodInfoOf(() => Queryable.Zip(
+                        default(IQueryable<TFirst>),
+                        default(IEnumerable<TSecond>),
+                        default(Expression<Func<TFirst, TSecond, TResult>>))),
                     new Expression[] { source1.Expression, GetSourceExpression(source2), Expression.Quote(resultSelector) }
                     ));
         }
@@ -665,7 +773,9 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Union(source1, source2)),
+                    GetMethodInfoOf(() => Queryable.Union(
+                        default(IQueryable<TSource>),
+                        default(IQueryable<TSource>))),
                     new Expression[] { source1.Expression, GetSourceExpression(source2) }
                     ));
         }
@@ -679,7 +789,10 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Union(source1, source2, comparer)),
+                    GetMethodInfoOf(() => Queryable.Union(
+                        default(IQueryable<TSource>),
+                        default(IQueryable<TSource>),
+                        default(IEqualityComparer<TSource>))),
                     new Expression[] {
                         source1.Expression,
                         GetSourceExpression(source2),
@@ -697,7 +810,9 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Intersect(source1, source2)),
+                    GetMethodInfoOf(() => Queryable.Intersect(
+                        default(IQueryable<TSource>),
+                        default(IQueryable<TSource>))),
                     new Expression[] { source1.Expression, GetSourceExpression(source2) }
                     ));
         }
@@ -711,7 +826,10 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Intersect(source1, source2, comparer)),
+                    GetMethodInfoOf(() => Queryable.Intersect(
+                        default(IQueryable<TSource>),
+                        default(IEnumerable<TSource>),
+                        default(IEqualityComparer<TSource>))),
                     new Expression[] {
                         source1.Expression,
                         GetSourceExpression(source2),
@@ -729,7 +847,9 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Except(source1, source2)),
+                    GetMethodInfoOf(() => Queryable.Except(
+                        default(IQueryable<TSource>),
+                        default(IEnumerable<TSource>))),
                     new Expression[] { source1.Expression, GetSourceExpression(source2) }
                     ));
         }
@@ -743,7 +863,10 @@ namespace System.Linq
             return source1.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Except(source1, source2, comparer)),
+                    GetMethodInfoOf(() => Queryable.Except(
+                        default(IQueryable<TSource>),
+                        default(IEnumerable<TSource>),
+                        default(IEqualityComparer<TSource>))),
                     new Expression[] {
                         source1.Expression,
                         GetSourceExpression(source2),
@@ -759,7 +882,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.First(source)),
+                    GetMethodInfoOf(() => Queryable.First(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -773,7 +897,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.First(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.First(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -785,7 +911,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.FirstOrDefault(source)),
+                    GetMethodInfoOf(() => Queryable.FirstOrDefault(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -799,7 +926,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.FirstOrDefault(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.FirstOrDefault(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -811,7 +940,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Last(source)),
+                    GetMethodInfoOf(() => Queryable.Last(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -825,7 +955,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Last(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.Last(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -837,7 +969,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.LastOrDefault(source)),
+                    GetMethodInfoOf(() => Queryable.LastOrDefault(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -851,7 +984,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.LastOrDefault(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.LastOrDefault(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -863,7 +998,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Single(source)),
+                    GetMethodInfoOf(() => Queryable.Single(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -877,7 +1013,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Single(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.Single(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -889,7 +1027,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SingleOrDefault(source)),
+                    GetMethodInfoOf(() => Queryable.SingleOrDefault(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -903,7 +1042,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SingleOrDefault(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.SingleOrDefault(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -917,7 +1058,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.ElementAt(source, index)),
+                    GetMethodInfoOf(() => Queryable.ElementAt(
+                        default(IQueryable<TSource>),
+                        default(int))),
                     new Expression[] { source.Expression, Expression.Constant(index) }
                     ));
         }
@@ -929,7 +1072,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.ElementAtOrDefault(source, index)),
+                    GetMethodInfoOf(() => Queryable.ElementAtOrDefault(
+                        default(IQueryable<TSource>),
+                        default(int))),
                     new Expression[] { source.Expression, Expression.Constant(index) }
                     ));
         }
@@ -941,7 +1086,8 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.DefaultIfEmpty(source)),
+                    GetMethodInfoOf(() => Queryable.DefaultIfEmpty(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -953,7 +1099,9 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.DefaultIfEmpty(source, defaultValue)),
+                    GetMethodInfoOf(() => Queryable.DefaultIfEmpty(
+                        default(IQueryable<TSource>),
+                        default(TSource))),
                     new Expression[] { source.Expression, Expression.Constant(defaultValue, typeof(TSource)) }
                     ));
         }
@@ -965,7 +1113,9 @@ namespace System.Linq
             return source.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Contains(source, item)),
+                    GetMethodInfoOf(() => Queryable.Contains(
+                        default(IQueryable<TSource>),
+                        default(TSource))),
                     new Expression[] { source.Expression, Expression.Constant(item, typeof(TSource)) }
                     ));
         }
@@ -977,7 +1127,10 @@ namespace System.Linq
             return source.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Contains(source, item, comparer)),
+                    GetMethodInfoOf(() => Queryable.Contains(
+                        default(IQueryable<TSource>),
+                        default(TSource),
+                        default(IEqualityComparer<TSource>))),
                     new Expression[] { source.Expression, Expression.Constant(item, typeof(TSource)), Expression.Constant(comparer, typeof(IEqualityComparer<TSource>)) }
                     ));
         }
@@ -989,7 +1142,8 @@ namespace System.Linq
             return source.Provider.CreateQuery<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Reverse(source)),
+                    GetMethodInfoOf(() => Queryable.Reverse(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1003,7 +1157,9 @@ namespace System.Linq
             return source1.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SequenceEqual(source1, source2)),
+                    GetMethodInfoOf(() => Queryable.SequenceEqual(
+                        default(IQueryable<TSource>),
+                        default(IQueryable<TSource>))),
                     new Expression[] { source1.Expression, GetSourceExpression(source2) }
                     ));
         }
@@ -1017,7 +1173,10 @@ namespace System.Linq
             return source1.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.SequenceEqual(source1, source2, comparer)),
+                    GetMethodInfoOf(() => Queryable.SequenceEqual(
+                        default(IQueryable<TSource>),
+                        default(IEnumerable<TSource>),
+                        default(IEqualityComparer<TSource>))),
                     new Expression[] {
                         source1.Expression,
                         GetSourceExpression(source2),
@@ -1033,7 +1192,8 @@ namespace System.Linq
             return source.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Any(source)),
+                    GetMethodInfoOf(() => Queryable.Any(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1047,7 +1207,9 @@ namespace System.Linq
             return source.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Any(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.Any(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -1061,7 +1223,9 @@ namespace System.Linq
             return source.Provider.Execute<bool>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.All(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.All(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -1073,7 +1237,8 @@ namespace System.Linq
             return source.Provider.Execute<int>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Count(source)),
+                    GetMethodInfoOf(() => Queryable.Count(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1087,7 +1252,9 @@ namespace System.Linq
             return source.Provider.Execute<int>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Count(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.Count(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -1099,7 +1266,8 @@ namespace System.Linq
             return source.Provider.Execute<long>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.LongCount(source)),
+                    GetMethodInfoOf(() => Queryable.LongCount(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1113,7 +1281,9 @@ namespace System.Linq
             return source.Provider.Execute<long>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.LongCount(source, predicate)),
+                    GetMethodInfoOf(() => Queryable.LongCount(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, bool>>))),
                     new Expression[] { source.Expression, Expression.Quote(predicate) }
                     ));
         }
@@ -1125,7 +1295,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Min(source)),
+                    GetMethodInfoOf(() => Queryable.Min(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1139,7 +1310,9 @@ namespace System.Linq
             return source.Provider.Execute<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Min(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Min(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1151,7 +1324,8 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Max(source)),
+                    GetMethodInfoOf(() => Queryable.Max(
+                        default(IQueryable<TSource>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1165,7 +1339,9 @@ namespace System.Linq
             return source.Provider.Execute<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Max(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Max(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TResult>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1177,7 +1353,8 @@ namespace System.Linq
             return source.Provider.Execute<int>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<int>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1189,7 +1366,8 @@ namespace System.Linq
             return source.Provider.Execute<int?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<int?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1201,7 +1379,8 @@ namespace System.Linq
             return source.Provider.Execute<long>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<long>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1213,7 +1392,8 @@ namespace System.Linq
             return source.Provider.Execute<long?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<long?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1225,7 +1405,8 @@ namespace System.Linq
             return source.Provider.Execute<float>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<float>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1237,7 +1418,8 @@ namespace System.Linq
             return source.Provider.Execute<float?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<float?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1249,7 +1431,8 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<double>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1261,7 +1444,8 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<double?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1273,7 +1457,8 @@ namespace System.Linq
             return source.Provider.Execute<decimal>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<decimal>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1285,7 +1470,8 @@ namespace System.Linq
             return source.Provider.Execute<decimal?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<decimal?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1299,7 +1485,9 @@ namespace System.Linq
             return source.Provider.Execute<int>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1313,7 +1501,9 @@ namespace System.Linq
             return source.Provider.Execute<int?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1327,7 +1517,9 @@ namespace System.Linq
             return source.Provider.Execute<long>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, long>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1341,7 +1533,9 @@ namespace System.Linq
             return source.Provider.Execute<long?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, long?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1355,7 +1549,9 @@ namespace System.Linq
             return source.Provider.Execute<float>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, float>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1369,7 +1565,9 @@ namespace System.Linq
             return source.Provider.Execute<float?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, float?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1383,7 +1581,9 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, double>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1397,7 +1597,9 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, double?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1411,7 +1613,9 @@ namespace System.Linq
             return source.Provider.Execute<decimal>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, decimal>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1425,7 +1629,9 @@ namespace System.Linq
             return source.Provider.Execute<decimal?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Sum(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Sum(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, decimal?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1437,7 +1643,8 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<int>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1449,7 +1656,8 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<int?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1461,7 +1669,8 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<long>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1473,7 +1682,8 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<long?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1485,7 +1695,8 @@ namespace System.Linq
             return source.Provider.Execute<float>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<float>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1497,7 +1708,8 @@ namespace System.Linq
             return source.Provider.Execute<float?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<float?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1509,7 +1721,8 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<double>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1521,7 +1734,8 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<double?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1533,7 +1747,8 @@ namespace System.Linq
             return source.Provider.Execute<decimal>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<decimal>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1545,7 +1760,8 @@ namespace System.Linq
             return source.Provider.Execute<decimal?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<decimal?>))),
                     new Expression[] { source.Expression }
                     ));
         }
@@ -1559,7 +1775,9 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1573,7 +1791,9 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, int?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1587,7 +1807,9 @@ namespace System.Linq
             return source.Provider.Execute<float>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, float>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1601,7 +1823,9 @@ namespace System.Linq
             return source.Provider.Execute<float?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, float?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1615,7 +1839,9 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, long>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1629,7 +1855,9 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, long?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1643,7 +1871,9 @@ namespace System.Linq
             return source.Provider.Execute<double>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, double>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1657,7 +1887,9 @@ namespace System.Linq
             return source.Provider.Execute<double?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, double?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1671,7 +1903,9 @@ namespace System.Linq
             return source.Provider.Execute<decimal>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, decimal>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1685,7 +1919,9 @@ namespace System.Linq
             return source.Provider.Execute<decimal?>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Average(source, selector)),
+                    GetMethodInfoOf(() => Queryable.Average(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, decimal?>>))),
                     new Expression[] { source.Expression, Expression.Quote(selector) }
                     ));
         }
@@ -1699,7 +1935,9 @@ namespace System.Linq
             return source.Provider.Execute<TSource>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Aggregate(source, func)),
+                    GetMethodInfoOf(() => Queryable.Aggregate(
+                        default(IQueryable<TSource>),
+                        default(Expression<Func<TSource, TSource, TSource>>))),
                     new Expression[] { source.Expression, Expression.Quote(func) }
                     ));
         }
@@ -1713,7 +1951,10 @@ namespace System.Linq
             return source.Provider.Execute<TAccumulate>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Aggregate(source, seed, func)),
+                    GetMethodInfoOf(() => Queryable.Aggregate(
+                        default(IQueryable<TSource>),
+                        default(TAccumulate),
+                        default(Expression<Func<TAccumulate, TSource, TAccumulate>>))),
                     new Expression[] { source.Expression, Expression.Constant(seed), Expression.Quote(func) }
                     ));
         }
@@ -1729,7 +1970,11 @@ namespace System.Linq
             return source.Provider.Execute<TResult>(
                 Expression.Call(
                     null,
-                    GetMethodInfoOf(() => Queryable.Aggregate(source, seed, func, selector)),
+                    GetMethodInfoOf(() => Queryable.Aggregate(
+                        default(IQueryable<TSource>),
+                        default(TAccumulate),
+                        default(Expression<Func<TAccumulate, TSource, TAccumulate>>),
+                        default(Expression<Func<TAccumulate, TResult>>))),
                     new Expression[] { source.Expression, Expression.Constant(seed), Expression.Quote(func), Expression.Quote(selector) }
                     ));
         }

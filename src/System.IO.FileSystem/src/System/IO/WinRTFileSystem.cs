@@ -476,6 +476,10 @@ namespace System.IO
 
         private async Task<FileStreamBase> OpenAsync(string fullPath, FileMode mode, FileAccess access, FileShare share, int bufferSize, FileOptions options, FileStream parent)
         {
+            // When trying to open the root directory, we need to throw an Access Denied
+            if (PathInternal.GetRootLength(fullPath) == fullPath.Length)
+                throw Win32Marshal.GetExceptionForWin32Error(Interop.mincore.Errors.ERROR_ACCESS_DENIED, fullPath);
+
             // Win32 CreateFile returns ERROR_PATH_NOT_FOUND when given a path that ends with '\'
             if (PathHelpers.EndsInDirectorySeparator(fullPath))
                 throw Win32Marshal.GetExceptionForWin32Error(Interop.mincore.Errors.ERROR_PATH_NOT_FOUND, fullPath);

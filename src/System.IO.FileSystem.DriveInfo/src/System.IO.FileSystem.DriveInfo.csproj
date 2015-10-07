@@ -11,6 +11,8 @@
     <ProjectGuid>{29C14AD7-DC03-45DC-897D-8DACC762707E}</ProjectGuid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLSCompliant>false</CLSCompliant>
+    <PackageTargetFramework>dotnet</PackageTargetFramework>
+    <UsePackageTargetRuntimeDefaults>true</UsePackageTargetRuntimeDefaults>
   </PropertyGroup>
   <!-- Help VS understand available configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Windows_Debug|AnyCPU' " />
@@ -19,7 +21,8 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Linux_Release|AnyCPU' " />
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'OSX_Debug|AnyCPU' " />
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'OSX_Release|AnyCPU' " />
-  <!-- References are resolved from packages.config -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'FreeBSD_Debug|AnyCPU' "/>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'FreeBSD_Release|AnyCPU' "/>
 
   <ItemGroup>
     <Compile Include="System\IO\DriveInfo.cs" />
@@ -28,8 +31,13 @@
     <Compile Include="$(CommonPath)\System\__HResults.cs">
       <Link>Common\System\__HResults.cs</Link>
     </Compile>
+    <Compile Include="$(CommonPath)\System\IO\PathInternal.cs">
+      <Link>Common\System\IO\PathInternal.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\IO\PathInternal.CaseSensitivity.cs">
+      <Link>Common\System\IO\PathInternal.CaseSensitivity.cs</Link>
+    </Compile>
   </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
     <Compile Include="System\IO\__Error.cs" />
     <Compile Include="System\IO\DriveInfo.Windows.cs" />
@@ -73,8 +81,8 @@
       <Link>Common\System\IO\PathInternal.Windows.cs</Link>
     </Compile>
   </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetsUnix)' == 'true' ">
+    <Compile Include="System\IO\DriveInfo.Unix.cs" />
     <Compile Include="$(CommonPath)\Interop\Unix\Interop.Libraries.cs">
       <Link>Common\Interop\Unix\Interop.Libraries.cs</Link>
     </Compile>
@@ -84,39 +92,18 @@
     <Compile Include="$(CommonPath)\Interop\Unix\Interop.IOErrors.cs">
       <Link>Common\Interop\Unix\Interop.IOErrors.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Interop\Unix\libc\Interop.gnu_get_libc_version.cs">
-      <Link>Common\Interop\Unix\Interop.gnu_get_libc_version.cs</Link>
+    <Compile Include="$(CommonPath)\System\IO\PathInternal.Unix.cs">
+      <Link>Common\System\IO\PathInternal.Unix.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Interop\Unix\libc\Interop.strerror.cs">
-      <Link>Common\Interop\Unix\Interop.strerror.cs</Link>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Native\Interop.PathConf.cs">
+      <Link>Common\Interop\Unix\Interop.PathConf.cs</Link>
     </Compile>
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetsLinux)' == 'true' ">
-    <Compile Include="System\IO\DriveInfo.Linux.cs" />
-    <Compile Include="$(CommonPath)\Interop\Unix\libc\Interop.statvfs.cs">
-      <Link>Common\Interop\Unix\Interop.statvfs.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\Interop\Linux\libc\Interop.endmntent.cs">
-      <Link>Common\Interop\Unix\Interop.endmntent.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\Interop\Linux\libc\Interop.getmntent.cs">
-      <Link>Common\Interop\Unix\Interop.getmntent.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\Interop\Linux\libc\Interop.setmntent.cs">
-      <Link>Common\Interop\Unix\Interop.setmntent.cs</Link>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Native\Interop.MountPoints.cs">
+      <Link>Common\Interop\Unix\Interop.MountPoints.cs</Link>
     </Compile>
   </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetsOSX)' == 'true' ">
-    <Compile Include="System\IO\DriveInfo.OSX.cs" />
-    <Compile Include="$(CommonPath)\System\NotImplemented.cs"> <!-- TODO: Remove once implemented -->
-      <Link>Common\System\NotImplemented.cs</Link>
-    </Compile>
-  </ItemGroup>
-
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

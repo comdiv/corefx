@@ -7,10 +7,12 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
 
 namespace System.IO
 {
+    // Note: This class has an OS Limitation where the inotify API can miss events if a directory is created and immediately has
+    //       changes underneath. This is due to the inotify* APIs not being recursive and needing to call inotify_add_watch on
+    //       each subdirectory, causing a race between adding the watch and file system events happening.
     public partial class FileSystemWatcher
     {
         /// <summary>Starts a new watch operation if one is not currently running.</summary>
@@ -29,8 +31,24 @@ namespace System.IO
             SafeFileHandle handle;
             try { } finally
             {
-                int fd;
-                Interop.CheckIo(fd = Interop.libc.inotify_init());
+                int fd = Interop.libc.inotify_init();
+                if (fd == -1)
+                {
+                    Interop.ErrorInfo error = Interop.Sys.GetLastErrorInfo();
+                    switch (error.Error)
+                    {
+                        case Interop.Error.EMFILE:
+                            string maxValue = ReadMaxUserLimit(MaxUserInstancesPath);
+                            string message = !string.IsNullOrEmpty(maxValue) ?
+                                SR.Format(SR.IOException_INotifyInstanceUserLimitExceeded_Value, maxValue) :
+                                SR.IOException_INotifyInstanceUserLimitExceeded;
+                            throw new IOException(message, error.RawErrno);
+                        case Interop.Error.ENFILE:
+                            throw new IOException(SR.IOException_INotifyInstanceSystemLimitExceeded, error.RawErrno);
+                        default:
+                            throw Interop.GetExceptionForIoErrno(error);
+                    }
+                }
                 handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
             }
 
@@ -42,15 +60,18 @@ namespace System.IO
                 // Start running.  All state associated with the watch operation is stored in a separate object; this is done
                 // to avoid race conditions that could result if the users quickly starts/stops/starts/stops/etc. causing multiple
                 // active operations to all be outstanding at the same time.
-                new RunningInstance(
+                var runner = new RunningInstance(
                     this, handle, _directory,
                     IncludeSubdirectories, TranslateFilters(NotifyFilter), cancellation.Token);
 
-                // Now that we've started running successfully, store the cancellation object and mark the instance
-                // as running.  We wait to store the cancellation token so that if there was a failure, StartRaisingEvents
+                // Now that we've created the runner, store the cancellation object and mark the instance
+                // as running.  We wait to do this so that if there was a failure, StartRaisingEvents
                 // may be called to try again without first having to call StopRaisingEvents.
                 _cancellation = cancellation;
                 _enabled = true;
+
+                // Start the runner
+                runner.Start();
             }
             catch
             {
@@ -65,13 +86,14 @@ namespace System.IO
         /// <summary>Cancels the currently running watch operation if there is one.</summary>
         private void StopRaisingEvents()
         {
+            _enabled = false;
+
             // If there's an active cancellation token, cancel and release it.
             // The cancellation token and the processing task respond to cancellation
             // to handle all other cleanup.
             var cts = _cancellation;
             if (cts != null)
             {
-                _enabled = false;
                 _cancellation = null;
                 cts.Cancel();
             }
@@ -90,11 +112,26 @@ namespace System.IO
         // ---- PAL layer ends here ----
         // -----------------------------
 
+        /// <summary>Path to the procfs file that contains the maximum number of inotify instances an individual user may create.</summary>
+        private const string MaxUserInstancesPath = "/proc/sys/fs/inotify/max_user_instances";
+
+        /// <summary>Path to the procfs file that contains the maximum number of inotify watches an individual user may create.</summary>
+        private const string MaxUserWatchesPath = "/proc/sys/fs/inotify/max_user_watches";
+
         /// <summary>
         /// Cancellation for the currently running watch operation.  
         /// This is non-null if an operation has been started and null if stopped.
         /// </summary>
         private CancellationTokenSource _cancellation;
+
+        /// <summary>Reads the value of a max user limit path from procfs.</summary>
+        /// <param name="path">The path to read.</param>
+        /// <returns>The value read, or "0" if a failure occurred.</returns>
+        private static string ReadMaxUserLimit(string path)
+        {
+            try { return File.ReadAllText(path).Trim(); }
+            catch { return null; }
+        }
 
         /// <summary>
         /// Maps the FileSystemWatcher's NotifyFilters enumeration to the 
@@ -167,7 +204,7 @@ namespace System.IO
         }
 
         /// <summary>
-        /// State and processing associatd with an active watch operation.  This state is kept separate from FileSystemWatcher to avoid 
+        /// State and processing associated with an active watch operation.  This state is kept separate from FileSystemWatcher to avoid 
         /// race conditions when a user starts/stops/starts/stops/etc. in quick succession, resulting in the potential for multiple 
         /// active operations. It also helps with avoiding rooted cycles and enabling proper finalization.
         /// </summary>
@@ -249,13 +286,15 @@ namespace System.IO
                 _includeSubdirectories = includeSubdirectories;
                 _notifyFilters = notifyFilters;
                 _cancellationToken = cancellationToken;
-                FileSystemWatcher.CaseSensitive = true;
 
                 // Add a watch for this starting directory.  We keep track of the watch descriptor => directory information
                 // mapping in a dictionary; this is needed in order to be able to determine the containing directory
                 // for all notifications so that we can reconstruct the full path.
                 AddDirectoryWatchUnlocked(null, directoryPath);
+            }
 
+            internal void Start()
+            {
                 // Schedule a task to read from the inotify queue and process the events.
                 Task.Factory.StartNew(obj => ((RunningInstance)obj).ProcessEvents(),
                     this, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -293,13 +332,55 @@ namespace System.IO
             /// <summary>Adds a watch on a directory to the existing inotify handle.</summary>
             /// <param name="parent">The parent directory entry.</param>
             /// <param name="directoryName">The new directory path to monitor, relative to the root.</param>
-            private WatchedDirectory AddDirectoryWatchUnlocked(WatchedDirectory parent, string directoryName)
+            private void AddDirectoryWatchUnlocked(WatchedDirectory parent, string directoryName)
             {
                 string fullPath = parent != null ? parent.GetPath(false, directoryName) : directoryName;
 
+                // inotify_add_watch will fail if this is a symlink, so check that we didn't get a symlink
+                Interop.Sys.FileStatus status = default(Interop.Sys.FileStatus);
+                if ((Interop.Sys.LStat(fullPath, out status) == 0) &&
+                    ((status.Mode & (uint)Interop.Sys.FileTypes.S_IFMT) == Interop.Sys.FileTypes.S_IFLNK))
+                {
+                    return;
+                }
+
                 // Add a watch for the full path.  If the path is already being watched, this will return 
-                // the existing descriptor.  This works even in the case of a rename.
-                int wd = (int)SysCall(fd => Interop.libc.inotify_add_watch(fd, fullPath, (uint)_notifyFilters));
+                // the existing descriptor.  This works even in the case of a rename. We also add the DONT_FOLLOW
+                // and EXCL_UNLINK flags to keep parity with Windows where we don't pickup symlinks or unlinked
+                // files (which don't exist in Windows)
+                int wd = (int)SysCall(
+                    (fd, path, thisRef) => Interop.libc.inotify_add_watch(fd, path, (uint)(thisRef._notifyFilters | Interop.libc.NotifyEvents.IN_DONT_FOLLOW | Interop.libc.NotifyEvents.IN_EXCL_UNLINK)),
+                    fullPath,
+                    this, 
+                    checkErrors: false);
+                if (wd == -1)
+                {
+                    // If we get an error when trying to add the watch, don't let that tear down processing.  Instead,
+                    // raise the Error event with the exception and let the user decide how to handle it.
+
+                    Interop.ErrorInfo error = Interop.Sys.GetLastErrorInfo();
+                    Exception exc;
+                    if (error.Error == Interop.Error.ENOSPC)
+                    {
+                        string maxValue = ReadMaxUserLimit(MaxUserWatchesPath);
+                        string message = !string.IsNullOrEmpty(maxValue) ?
+                            SR.Format(SR.IOException_INotifyWatchesUserLimitExceeded_Value, maxValue) :
+                            SR.IOException_INotifyWatchesUserLimitExceeded;
+                        exc = new IOException(message, error.RawErrno);
+                    }
+                    else
+                    {
+                        exc = Interop.GetExceptionForIoErrno(error, fullPath);
+                    }
+
+                    FileSystemWatcher watcher;
+                    if (_weakWatcher.TryGetTarget(out watcher))
+                    {
+                        watcher.OnError(new ErrorEventArgs(exc));
+                    }
+
+                    return;
+                }
 
                 // Then store the path information into our map.
                 WatchedDirectory directoryEntry;
@@ -360,8 +441,6 @@ namespace System.IO
                         // this.Children, so we don't have to / shouldn't also do it here.
                     }
                 }
-
-                return directoryEntry;
             }
 
             /// <summary>Removes the watched directory from our state, and optionally removes the inotify watch itself.</summary>
@@ -401,15 +480,15 @@ namespace System.IO
                 // And if the caller has requested, remove the associated inotify watch.
                 if (removeInotify)
                 {
-                    SysCall(fd => 
+                    SysCall((fd, dirEntry, _) => 
                     {
                         // Remove the inotify watch.  This could fail if our state has become inconsistent
                         // with the state of the world (e.g. due to lost events).  So we don't want failures
                         // to throw exceptions, but we do assert to detect coding problems during debugging.
-                        long result = Interop.libc.inotify_rm_watch(fd, directoryEntry.WatchDescriptor);
+                        long result = Interop.libc.inotify_rm_watch(fd, dirEntry.WatchDescriptor);
                         Debug.Assert(result >= 0);
                         return 0;
-                    });
+                    }, directoryEntry, 0);
                 }
             }
 
@@ -423,14 +502,14 @@ namespace System.IO
                 {
                     // Remove all watches (inotiy_rm_watch) and clear out the map.
                     // No additional watches will be added after this point.
-                    SysCall(fd => {
-                        foreach (int wd in _wdToPathMap.Keys)
+                    SysCall((fd, thisRef, _) => {
+                        foreach (int wd in thisRef._wdToPathMap.Keys)
                         {
                             int result = Interop.libc.inotify_rm_watch(fd, wd);
                             Debug.Assert(result >= 0); // ignore errors; they're non-fatal, but they also shouldn't happen
                         }
                         return 0;
-                    });
+                    }, this, 0);
                     _wdToPathMap.Clear();
                 }
             }
@@ -468,11 +547,24 @@ namespace System.IO
                         }
 
                         uint mask = nextEvent.mask;
-                        bool addWatch = false;
                         string expandedName = null;
                         WatchedDirectory associatedDirectoryEntry = null;
 
-                        if (nextEvent.wd != -1) // wd is -1 for events like IN_Q_OVERFLOW that aren't tied to a particular watch descriptor
+                        // An overflow event means that we can't trust our state without restarting since we missed events and 
+                        // some of those events could be a directory create, meaning we wouldn't have added the directory to the 
+                        // watch and would not provide correct data to the caller.
+                        if ((mask & (uint)Interop.libc.NotifyEvents.IN_Q_OVERFLOW) != 0)
+                        {
+                            // Notify the caller of the error and, if the includeSubdirectories flag is set, restart to pick up any
+                            // potential directories we missed due to the overflow.
+                            watcher.NotifyInternalBufferOverflowEvent();
+                            if (_includeSubdirectories)
+                            {
+                                watcher.Restart();
+                            }
+                            break;
+                        }
+                        else
                         {
                             // Look up the directory information for the supplied wd
                             lock (SyncObj)
@@ -529,19 +621,23 @@ namespace System.IO
                             previousEventCookie = 0;
                         }
 
+                        // If the event signaled that there's a new subdirectory and if we're monitoring subdirectories,
+                        // add a watch for it.
+                        const Interop.libc.NotifyEvents AddMaskFilters = Interop.libc.NotifyEvents.IN_CREATE | Interop.libc.NotifyEvents.IN_MOVED_TO;
+                        bool addWatch = ((mask & (uint)AddMaskFilters) != 0);
+                        if (addWatch && isDir && _includeSubdirectories)
+                        {
+                            AddDirectoryWatch(associatedDirectoryEntry, nextEvent.name);
+                        }
+
                         const Interop.libc.NotifyEvents switchMask =
-                            Interop.libc.NotifyEvents.IN_Q_OVERFLOW | Interop.libc.NotifyEvents.IN_IGNORED |
-                            Interop.libc.NotifyEvents.IN_CREATE | Interop.libc.NotifyEvents.IN_DELETE |
+                            Interop.libc.NotifyEvents.IN_IGNORED |Interop.libc.NotifyEvents.IN_CREATE | Interop.libc.NotifyEvents.IN_DELETE |
                             Interop.libc.NotifyEvents.IN_ACCESS | Interop.libc.NotifyEvents.IN_MODIFY | Interop.libc.NotifyEvents.IN_ATTRIB |
                             Interop.libc.NotifyEvents.IN_MOVED_FROM | Interop.libc.NotifyEvents.IN_MOVED_TO;
                         switch ((Interop.libc.NotifyEvents)(mask & (uint)switchMask))
                         {
-                            case Interop.libc.NotifyEvents.IN_Q_OVERFLOW:
-                                watcher.NotifyInternalBufferOverflowEvent();
-                                break;
                             case Interop.libc.NotifyEvents.IN_CREATE:
                                 watcher.NotifyFileSystemEventArgs(WatcherChangeTypes.Created, expandedName);
-                                addWatch = true;
                                 break;
                             case Interop.libc.NotifyEvents.IN_IGNORED:
                                 // We're getting an IN_IGNORED because a directory watch was removed.
@@ -561,9 +657,54 @@ namespace System.IO
                                 watcher.NotifyFileSystemEventArgs(WatcherChangeTypes.Changed, expandedName);
                                 break;
                             case Interop.libc.NotifyEvents.IN_MOVED_FROM:
+                                // We need to check if this MOVED_FROM event is standalone - meaning the item was moved out
+                                // of scope. We do this by checking if we are at the end of our buffer (meaning no more events) 
+                                // and if there is data to be read by polling the fd. If there aren't any more events, fire the
+                                // deleted event; if there are more events, handle it via next pass. This adds an additional
+                                // edge case where we get the MOVED_FROM event and the MOVED_TO event hasn't been generated yet
+                                // so we will send a DELETE for this event and a CREATE when the MOVED_TO is eventually processed.
+                                if (_bufferPos == _bufferAvailable)
+                                {
+                                    int pollResult;
+                                    bool gotRef = false;
+                                    try
+                                    {
+                                        _inotifyHandle.DangerousAddRef(ref gotRef);
+
+                                        // Do the poll with a small timeout value.  Community research showed that a few milliseconds
+                                        // was enough to allow the vast majority of MOVED_TO events that were going to show
+                                        // up to actually arrive.  This doesn't need to be perfect; there's always the chance
+                                        // that a MOVED_TO could show up after whatever timeout is specified, in which case
+                                        // it'll just result in a delete + create instead of a rename.  We need the value to be
+                                        // small so that we don't significantly delay the delivery of the deleted event in case
+                                        // that's actually what's needed (otherwise it'd be fine to block indefinitely waiting
+                                        // for the next event to arrive).
+                                        const int MillisecondsTimeout = 2;
+                                        Interop.Sys.PollFlags resultFlags;
+                                        pollResult = Interop.Sys.Poll(_inotifyHandle.DangerousGetHandle().ToInt32(), Interop.Sys.PollFlags.POLLIN, MillisecondsTimeout, out resultFlags);
+                                    }
+                                    finally
+                                    {
+                                        if (gotRef)
+                                        {
+                                            _inotifyHandle.DangerousRelease();
+                                        }
+                                    }
+
+                                    // If we error or don't have any signaled handles, send the deleted event
+                                    if (pollResult <= 0)
+                                    {
+                                        // There isn't any more data in the queue so this is a deleted event
+                                        watcher.NotifyFileSystemEventArgs(WatcherChangeTypes.Deleted, expandedName);
+                                        break;
+                                    }
+                                }
+
+                                // We will set these values if the buffer has more data OR if the poll call tells us that more data is available.
                                 previousEventName = expandedName;
                                 previousEventParent = isDir ? associatedDirectoryEntry : null;
                                 previousEventCookie = nextEvent.cookie;
+
                                 break;
                             case Interop.libc.NotifyEvents.IN_MOVED_TO:
                                 if (previousEventName != null)
@@ -580,15 +721,7 @@ namespace System.IO
                                 previousEventName = null;
                                 previousEventParent = null;
                                 previousEventCookie = 0;
-                                addWatch = true; // for either rename or creation, we need to update our state
                                 break;
-                        }
-
-                        // If the event signaled that there's a new subdirectory and if we're monitoring subdirectories,
-                        // add a watch for it.
-                        if (addWatch && isDir && _includeSubdirectories)
-                        {
-                            AddDirectoryWatch(associatedDirectoryEntry, nextEvent.name);
                         }
 
                         // Drop our strong reference to the watcher now that we're potentially going to block again for another read
@@ -628,15 +761,15 @@ namespace System.IO
                     {
                         try
                         {
-                            _bufferAvailable = (int)SysCall(fd => {
-                                long result;
-                                fixed (byte* buf = _buffer)
+                            _bufferAvailable = (int)SysCall((fd, thisRef, _) => {
+                                int result;
+                                fixed (byte* buf = thisRef._buffer)
                                 {
-                                    result = (long)Interop.libc.read(fd, buf, (IntPtr)_buffer.Length);
+                                    result = Interop.Sys.Read(fd, buf, thisRef._buffer.Length);
                                 }
-                                Debug.Assert(result <= _buffer.Length);
+                                Debug.Assert(result <= thisRef._buffer.Length);
                                 return result;
-                            });
+                            }, this, 0);
                         }
                         catch (ArgumentException)
                         {
@@ -710,10 +843,16 @@ namespace System.IO
             /// and less than zero on failure.  In the case of failure, errno is expected to
             /// be set to the relevant error code.
             /// </summary>
-            /// <param name="handle">The SafeFileHandle that wraps the file descriptor to use with the system call.</param>
             /// <param name="sysCall">A delegate that invokes the system call.  It's passed the associated file descriptor and should return the result.</param>
+            /// <param name="arg1">The first argument to be passed to the system call, after the file descriptor.</param>
+            /// <param name="arg2">The second argument to be passed to the system call.</param>
+            /// <param name="checkErrors">true to validate the result of the <paramref name="sysCall"/>; false to leave that responsibility to the caller.</param>
             /// <returns>The return value of the system call.</returns>
-            private long SysCall(Func<int, long> sysCall)
+            /// <remarks>
+            /// Arguments are expected to be passed via <paramref name="arg1"/> and <paramref name="arg2"/>
+            /// so as to avoid delegate and closure allocations at the call sites.
+            /// </remarks>
+            private long SysCall<TArg1, TArg2>(Func<int, TArg1, TArg2, long> sysCall, TArg1 arg1, TArg2 arg2, bool checkErrors = true)
             {
                 bool gotRefOnHandle = false;
                 try
@@ -725,20 +864,15 @@ namespace System.IO
                     int fd = (int)_inotifyHandle.DangerousGetHandle();
                     Debug.Assert(fd >= 0);
 
-                    // System calls may fail due to EINTR (signal interruption).  We need to retry in those cases.
-                    while (true)
+                    if (checkErrors)
                     {
-                        long result = sysCall(fd);
-                        if (result < 0)
-                        {
-                            int errno = Marshal.GetLastWin32Error();
-                            if (errno == (int)Interop.Errors.EINTR)
-                            {
-                                continue;
-                            }
-                            throw Interop.GetExceptionForIoErrno(errno, isDirectory: true);
-                        }
+                        long result;
+                        while (Interop.CheckIo(result = sysCall(fd, arg1, arg2), isDirectory: true)) ;
                         return result;
+                    }
+                    else
+                    {
+                        return sysCall(fd, arg1, arg2);
                     }
                 }
                 finally

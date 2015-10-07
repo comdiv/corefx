@@ -8,7 +8,7 @@ using Validation;
 using Xunit;
 using SetTriad = System.Tuple<System.Collections.Generic.IEnumerable<int>, System.Collections.Generic.IEnumerable<int>, bool>;
 
-namespace System.Collections.Immutable.Test
+namespace System.Collections.Immutable.Tests
 {
     public abstract class ImmutableSetTest : ImmutablesTestBase
     {
@@ -56,6 +56,25 @@ namespace System.Collections.Immutable.Test
         public void ExceptTest()
         {
             this.ExceptTestHelper(Empty<int>().Add(1).Add(3).Add(5).Add(7), 3, 7);
+        }
+
+        /// <summary>
+        /// Verifies that Except *does* enumerate its argument if the collection is empty.
+        /// </summary>
+        /// <remarks>
+        /// While this would seem an implementation detail and simply lack of an optimization,
+        /// it turns out that changing this behavior now *could* represent a breaking change
+        /// because if the enumerable were to throw an exception, that exception would be
+        /// observed previously, but would no longer be thrown if this behavior changed.
+        /// So this is a test to lock the behavior in place or be thoughtful if adding the optimization.
+        /// </remarks>
+        /// <seealso cref="ImmutableListTest.RemoveRangeDoesNotEnumerateSequenceIfThisIsEmpty"/>
+        [Fact]
+        public void ExceptDoesEnumerateSequenceIfThisIsEmpty()
+        {
+            bool enumerated = false;
+            Empty<int>().Except(Enumerable.Range(1, 1).Select(n => { enumerated = true; return n; }));
+            Assert.True(enumerated);
         }
 
         [Fact]

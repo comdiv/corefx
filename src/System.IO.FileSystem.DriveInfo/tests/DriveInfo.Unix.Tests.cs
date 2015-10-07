@@ -9,7 +9,7 @@ namespace System.IO.FileSystem.DriveInfoTests
     public partial class DriveInfoUnixTests
     {
         [Fact]
-        [PlatformSpecific(PlatformID.Linux | PlatformID.OSX)]
+        [PlatformSpecific(PlatformID.AnyUnix)]
         public void TestConstructor()
         {
             Assert.All(
@@ -22,7 +22,7 @@ namespace System.IO.FileSystem.DriveInfoTests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Linux | PlatformID.OSX)]
+        [PlatformSpecific(PlatformID.AnyUnix)]
         public void TestGetDrives()
         {
             var drives = DriveInfo.GetDrives();
@@ -30,31 +30,57 @@ namespace System.IO.FileSystem.DriveInfoTests
             Assert.True(drives.Length > 0, "Expected at least one drive");
             Assert.All(drives, d => Assert.NotNull(d));
             Assert.Contains(drives, d => d.Name == "/");
+            Assert.All(drives, d =>
+            {
+                // None of these should throw
+                DriveType dt = d.DriveType;
+                bool isReady = d.IsReady;
+                DirectoryInfo di = d.RootDirectory;
+            });
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Linux | PlatformID.OSX)]
-        public void TestInvalidDriveName()
+        [PlatformSpecific(PlatformID.AnyUnix)]
+        public void PropertiesOfInvalidDrive()
         {
-            var invalidDrive = new DriveInfo("NonExistentDriveName");
-            Assert.Throws<DriveNotFoundException>(() => { var df = invalidDrive.DriveFormat; });
-            Assert.Throws<DriveNotFoundException>(() => { var size = invalidDrive.DriveType; });
-            Assert.Throws<DriveNotFoundException>(() => { var size = invalidDrive.TotalFreeSpace; });
-            Assert.Throws<DriveNotFoundException>(() => { var size = invalidDrive.TotalSize; });
+            string invalidDriveName = "NonExistentDriveName";
+            var invalidDrive = new DriveInfo(invalidDriveName);
+
+            Assert.Throws<DriveNotFoundException>(() =>invalidDrive.AvailableFreeSpace);
+            Assert.Throws<DriveNotFoundException>(() => invalidDrive.DriveFormat);
+            Assert.Equal(DriveType.NoRootDirectory, invalidDrive.DriveType);
+            Assert.False(invalidDrive.IsReady);
+            Assert.Equal(invalidDriveName, invalidDrive.Name);
+            Assert.Equal(invalidDriveName, invalidDrive.ToString());
+            Assert.Equal(invalidDriveName, invalidDrive.RootDirectory.Name);
+            Assert.Throws<DriveNotFoundException>(() => invalidDrive.TotalFreeSpace);
+            Assert.Throws<DriveNotFoundException>(() => invalidDrive.TotalSize);
+            Assert.Equal(invalidDriveName, invalidDrive.VolumeLabel);   // VolumeLabel is equivalent to Name on Unix
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Linux | PlatformID.OSX)]
-        public void TestProperties()
+        [PlatformSpecific(PlatformID.AnyUnix)]
+        public void PropertiesOfValidDrive()
         {
             var root = new DriveInfo("/");
-            Assert.Equal("/", root.Name);
-            Assert.Equal("/", root.RootDirectory.FullName);
-            Assert.Equal(DriveType.Ram, root.DriveType);
-            Assert.True(root.IsReady);
             Assert.True(root.AvailableFreeSpace > 0);
+            var format = root.DriveFormat;
+            Assert.Equal(DriveType.Fixed, root.DriveType);
+            Assert.True(root.IsReady);
+            Assert.Equal("/", root.Name);
+            Assert.Equal("/", root.ToString());
+            Assert.Equal("/", root.RootDirectory.FullName);
             Assert.True(root.TotalFreeSpace > 0);
             Assert.True(root.TotalSize > 0);
+            Assert.Equal("/", root.VolumeLabel);
+        }
+
+        [Fact]
+        [PlatformSpecific(PlatformID.AnyUnix)]
+        public void SetVolumeLabel_Throws_PlatformNotSupportedException()
+        {
+            var root = new DriveInfo("/");
+            Assert.Throws<PlatformNotSupportedException>(() => root.VolumeLabel = root.Name);
         }
     }
 }

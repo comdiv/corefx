@@ -11,16 +11,20 @@
     <RestorePackages>true</RestorePackages>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <!-- Performance tests require v5.0 portable tools -->
+  <PropertyGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
   </PropertyGroup>
-  <!-- References are resolved from packages.config -->
   <ItemGroup>
     <Compile Include="System\Diagnostics\Stopwatch.cs" />
     <Compile Include="System\Runtime\Versioning\FrameworkName.cs" />
-    <Compile Include="System\IO\Path.cs" />
+    <Compile Include="System\IO\PathTests.cs" />
     <Compile Include="System\IO\Path.Combine.cs" />
     <Compile Include="System\Net\WebUtility.cs" />
     <Compile Include="System\BitConverter.cs" />
@@ -46,21 +50,46 @@
     <Compile Include="System\Convert.ToUInt64.cs" />
     <Compile Include="System\Environment.ExpandEnvironmentVariables.cs" />
     <Compile Include="System\Environment.GetEnvironmentVariable.cs" />
+    <Compile Include="System\Environment.NewLine.cs" />
+    <Compile Include="System\Environment.ProcessorCount.cs" />
     <Compile Include="System\Environment.SetEnvironmentVariable.cs" />
+    <Compile Include="System\Environment.StackTrace.cs" />
+    <Compile Include="System\Environment.TickCount.cs" />
     <Compile Include="System\Math.cs" />
+    <Compile Include="System\Progress.cs" />
     <Compile Include="System\Random.cs" />
     <Compile Include="System\StringComparer.cs" />
-    <Compile Include="$(CommonPath)\Interop\Interop.PlatformDetection.cs" />
+  </ItemGroup>
+  <!-- Performance Tests -->
+  <ItemGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <Compile Include="Performance\Perf.Environment.cs" />
+    <Compile Include="Performance\Perf.Path.cs" />
+    <Compile Include="Performance\Perf.Random.cs" />
+    <Compile Include="$(CommonTestPath)\Performance\PerfUtils.cs">
+      <Link>Common\Performance\PerfUtils.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
+    <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj">
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project>
-      <Name>XunitTraitsDiscoverers</Name>
+    <ProjectReference Include="..\src\System.Runtime.Extensions.CoreCLR.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Targets>Build;DebugSymbolsProjectOutputGroup</Targets>
+    </ProjectReference>
+    <ProjectReference Include="..\..\System.Private.Uri\src\System.Private.Uri.CoreCLR.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Targets>Build;DebugSymbolsProjectOutputGroup</Targets>
+    </ProjectReference>
+    <ProjectReference Include="..\..\System.Diagnostics.Debug\src\System.Diagnostics.Debug.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Targets>Build;DebugSymbolsProjectOutputGroup</Targets>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />

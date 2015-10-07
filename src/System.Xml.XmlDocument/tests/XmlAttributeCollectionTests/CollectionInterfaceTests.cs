@@ -1,8 +1,10 @@
-﻿using System.Collections;
-using System.Xml;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+using System.Collections;
 using Xunit;
 
-namespace XmlDocumentTests.XmlAttributeCollectionTests
+namespace System.Xml.Tests
 {
     public class CollectionInterfaceTests
     {

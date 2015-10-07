@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Dynamic.Utils;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -10,9 +11,8 @@ using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
 using System.Threading;
-using System.Dynamic.Utils;
 
-using AstUtils = System.Linq.Expressions.Interpreter.Utils;
+using AstUtils = System.Linq.Expressions.Utils;
 
 namespace System.Linq.Expressions.Interpreter
 {
@@ -214,11 +214,11 @@ namespace System.Linq.Expressions.Interpreter
             var method = delegateType.GetMethod("Invoke");
             if (method.ReturnType == typeof(void))
             {
-                return Internal.Runtime.Augments.DynamicDelegateAugments.CreateObjectArrayDelegate(delegateType, RunVoid);
+                return System.Dynamic.Utils.DelegateHelpers.CreateObjectArrayDelegate(delegateType, RunVoid);
             }
             else
             {
-                return Internal.Runtime.Augments.DynamicDelegateAugments.CreateObjectArrayDelegate(delegateType, Run);
+                return System.Dynamic.Utils.DelegateHelpers.CreateObjectArrayDelegate(delegateType, Run);
             }
 #else
             Func<LightLambda, Delegate> fastCtor = GetRunDelegateCtor(delegateType);

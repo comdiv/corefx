@@ -5,10 +5,8 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{20411A66-C7A4-4941-8FA2-66308365FD22}</ProjectGuid>
-    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AssemblyName>System.IO.FileSystem.Watcher.Tests</AssemblyName>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\System.IO.FileSystem.Watcher.csproj">
@@ -26,6 +24,7 @@
     <Compile Include="FileSystemWatcher.InternalBufferSize.cs" />
     <Compile Include="FileSystemWatcher.NotifyFilter.cs" />
     <Compile Include="FileSystemWatcher.Renamed.cs" />
+    <Compile Include="FileSystemWatcher.MoveFile.cs" />
     <Compile Include="Utility\TemporaryTestDirectory.cs" />
     <Compile Include="Utility\TemporaryTestFile.cs" />
     <Compile Include="Utility\TestFileSystemWatcher.cs" />
@@ -34,16 +33,10 @@
     <Compile Include="FileSystemEventArgs.unit.cs" />
     <Compile Include="FileSystemWatcher.unit.cs" />
     <Compile Include="RenamedEventArgs.unit.cs" />
-    <Compile Include="$(CommonPath)\Interop\Interop.PlatformDetection.cs" />
+    <Compile Include="XunitAssemblyAttributes.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj"> 
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project> 
-      <Name>XunitTraitsDiscoverers</Name> 
-    </ProjectReference> 
+    <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

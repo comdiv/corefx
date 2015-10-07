@@ -220,7 +220,7 @@ namespace Microsoft.CSharp.RuntimeBinder
 
         private IEnumerable<MemberInfo> AddNamesInInheritanceHierarchy(string name, List<Type> inheritance)
         {
-            IEnumerable<MemberInfo> result = new MemberInfo[0];
+            IEnumerable<MemberInfo> result = Array.Empty<MemberInfo>();
 
             foreach (Type t in inheritance)
             {
@@ -1982,7 +1982,13 @@ namespace Microsoft.CSharp.RuntimeBinder
 
                 AggregateSymbol aggregate = GetCTypeFromType(baseMethodInfo.DeclaringType).getAggregate();
                 MethodSymbol baseMethod = FindMethodFromMemberInfo(baseMethodInfo);
-                Debug.Assert(baseMethod != null);
+
+                // This assert is temporarily disabled to improve testability of the area on .NetNative
+                //Debug.Assert(baseMethod != null);
+                if ((object)baseMethod == null)
+                {
+                    throw Error.InternalCompilerError();
+                }
 
                 return new SymWithType(baseMethod, aggregate.getThisType());
             }

@@ -53,7 +53,7 @@ namespace System.Threading.Tasks.Dataflow.Internal
         /// <summary>An action to invoke for every accepted message.</summary>
         private readonly Action<TInput> _action;
 
-        /// <summary>Exceptions that may have occured and gone unhandled during processing.  This field is lazily initialized.</summary>
+        /// <summary>Exceptions that may have occurred and gone unhandled during processing.  This field is lazily initialized.</summary>
         private volatile List<Exception> _exceptions;
         /// <summary>Whether to stop accepting new messages.</summary>
         private volatile bool _decliningPermanently;
@@ -108,7 +108,7 @@ namespace System.Threading.Tasks.Dataflow.Internal
             return true;
         }
 
-        /// <include file='XmlDocs\CommonXmlDocComments.xml' path='CommonXmlDocComments/Targets/Member[@name="OfferMessage"]/*' />
+        /// <include file='XmlDocs/CommonXmlDocComments.xml' path='CommonXmlDocComments/Targets/Member[@name="OfferMessage"]/*' />
         internal DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, TInput messageValue, ISourceBlock<TInput> source, bool consumeToAccept)
         {
             // If we're not required to go back to the source to consume the offered message, try fast path.
@@ -357,7 +357,7 @@ namespace System.Threading.Tasks.Dataflow.Internal
 #endif
         }
 
-        /// <include file='XmlDocs\CommonXmlDocComments.xml' path='CommonXmlDocComments/Blocks/Member[@name="Completion"]/*' />
+        /// <include file='XmlDocs/CommonXmlDocComments.xml' path='CommonXmlDocComments/Blocks/Member[@name="Completion"]/*' />
         internal Task Completion { get { return CompletionSource.Task; } }
 
         /// <summary>Gets the lazily-initialized completion source.</summary>

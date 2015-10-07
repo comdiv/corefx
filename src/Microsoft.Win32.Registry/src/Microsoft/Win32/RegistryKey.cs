@@ -842,10 +842,10 @@ namespace Microsoft.Win32
         {
             EnsureNotDisposed();
             int subkeys = InternalSubKeyCount();
-            String[] names = new String[subkeys];  // Returns 0-length array if empty.
 
             if (subkeys > 0)
             {
+                String[] names = new String[subkeys];
                 char[] name = new char[MaxKeyLength + 1];
 
                 int namelen;
@@ -868,9 +868,11 @@ namespace Microsoft.Win32
                         names[i] = new String(namePtr);
                     }
                 }
+
+                return names;
             }
 
-            return names;
+            return Array.Empty<String>();
         }
 
         /**
@@ -921,10 +923,10 @@ namespace Microsoft.Win32
             EnsureNotDisposed();
 
             int values = InternalValueCount();
-            String[] names = new String[values];
 
             if (values > 0)
             {
+                String[] names = new String[values];
                 char[] name = new char[MaxValueLength + 1];
                 int namelen;
 
@@ -953,9 +955,11 @@ namespace Microsoft.Win32
                         names[i] = new String(namePtr);
                     }
                 }
+
+                return names;
             }
 
-            return names;
+            return Array.Empty<String>();
         }
 
         /**
@@ -1198,25 +1202,10 @@ namespace Microsoft.Win32
                         // make sure the string is null terminated before processing the data
                         if (blob.Length > 0 && blob[blob.Length - 1] != (char)0)
                         {
-                            try
-                            {
-                                char[] newBlob = new char[checked(blob.Length + 1)];
-                                for (int i = 0; i < blob.Length; i++)
-                                {
-                                    newBlob[i] = blob[i];
-                                }
-                                newBlob[newBlob.Length - 1] = (char)0;
-                                blob = newBlob;
-                            }
-                            catch (OverflowException e)
-                            {
-                                throw new IOException(SR.Arg_RegGetOverflowBug, e);
-                            }
-                            blob[blob.Length - 1] = (char)0;
+                            Array.Resize(ref blob, blob.Length + 1);
                         }
 
-
-                        IList<String> strings = new List<String>();
+                        var strings = new List<String>();
                         int cur = 0;
                         int len = blob.Length;
 
@@ -1250,8 +1239,7 @@ namespace Microsoft.Win32
                             cur = nextNull + 1;
                         }
 
-                        data = new String[strings.Count];
-                        strings.CopyTo((String[])data, 0);
+                        data = strings.ToArray();
                     }
                     break;
                 case Interop.mincore.RegistryValues.REG_LINK:
@@ -1283,7 +1271,7 @@ namespace Microsoft.Win32
         /**
          * Retrieves the current state of the dirty property.
          *
-         * A key is marked as dirty if any operation has occured that modifies the
+         * A key is marked as dirty if any operation has occurred that modifies the
          * contents of the key.
          *
          * @return <b>true</b> if the key has been modified.

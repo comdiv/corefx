@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading;
 using Xunit;
 
-public partial class FileSystemWatcher_4000_Tests
+public partial class ErrorTests
 {
     [Fact]
     [PlatformSpecific(PlatformID.Windows)]
@@ -23,10 +23,10 @@ public partial class FileSystemWatcher_4000_Tests
                 unblockHandler.WaitOne();
             };
 
-            AutoResetEvent eventOccured = new AutoResetEvent(false);
+            AutoResetEvent eventOccurred = new AutoResetEvent(false);
             watcher.Error += (o, e) =>
             {
-                eventOccured.Set();
+                eventOccurred.Set();
             };
             watcher.EnableRaisingEvents = true;
 
@@ -63,15 +63,15 @@ public partial class FileSystemWatcher_4000_Tests
             int internalBufferOperationCapacity = watcher.InternalBufferSize / (12 + 2 * (file.Path.Length + 1));
 
             // generate enough file change events to overflow the buffer
-            // 2x is an approximation that should force the overflow.
-            for (int i = 1; i < internalBufferOperationCapacity * 2; i++)
+            // 4x is an approximation that should force the overflow.
+            for (int i = 1; i < internalBufferOperationCapacity * 4; i++)
             {
                 File.SetLastWriteTime(file.Path, DateTime.Now + TimeSpan.FromSeconds(i));
             }
 
             unblockHandler.Set();
 
-            Utility.ExpectEvent(eventOccured, "error");
+            Utility.ExpectEvent(eventOccurred, "error");
         }
     }
 }

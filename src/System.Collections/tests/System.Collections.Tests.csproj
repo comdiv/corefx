@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
@@ -8,13 +8,38 @@
     <OutputType>Library</OutputType>
     <AssemblyName>System.Collections.Tests</AssemblyName>
     <RootNamespace>System.Collections.Tests</RootNamespace>
-    <UnsupportedOperatingSystems>Linux</UnsupportedOperatingSystems>
+  </PropertyGroup>
+  <!-- Performance tests require v5.0 portable tools -->
+  <PropertyGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Compile tests against the contract, but copy our local-built implementation for testing -->
+    <ProjectReference Include="..\src\System.Collections.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Targets>Build;DebugSymbolsProjectOutputGroup</Targets>
+    </ProjectReference>
+    <ProjectReference Include="..\..\System.Runtime\src\System.Runtime.CoreCLR.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Targets>Build;DebugSymbolsProjectOutputGroup</Targets>
+    </ProjectReference>
+    <ProjectReference Include="..\..\System.Diagnostics.Debug\src\System.Diagnostics.Debug.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Targets>Build;DebugSymbolsProjectOutputGroup</Targets>
+    </ProjectReference>
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="BitArray\BitArray_CtorTests.cs" />
     <Compile Include="BitArray\BitArray_GetSetTests.cs" />
@@ -24,6 +49,7 @@
     <Compile Include="Generic\Common\GenericIListTest.cs" />
     <Compile Include="Generic\Common\IEnumerableTest.cs" />
     <Compile Include="Generic\Common\TestSupport.cs" />
+    <Compile Include="Generic\Dictionary\DictionaryTests.cs" />
     <Compile Include="Generic\Dictionary\HashCollisionScenarios\InputData.cs" />
     <Compile Include="Generic\Dictionary\HashCollisionScenarios\OutOfBoundsRegression.cs" />
     <Compile Include="Generic\HashSet\HashSetTestSupport.cs" />
@@ -73,6 +99,7 @@
     <Compile Include="Generic\List\List_MiscMethods.cs" />
     <Compile Include="Generic\List\List_RemoveReverseTests.cs" />
     <Compile Include="Generic\List\List_SortTests.cs" />
+    <Compile Include="Generic\Queue\QueueTests.cs" />
     <Compile Include="Generic\SortedDictionary\SortedDictionaryUtils.cs" />
     <Compile Include="Generic\SortedDictionary\SortedDictionary_CtorTests.cs" />
     <Compile Include="Generic\SortedDictionary\SortedDictionary_KeyCollection.cs" />
@@ -116,17 +143,22 @@
     <Compile Include="Generic\SortedList\Values.cs" />
     <Compile Include="Generic\SortedSet\SortedSetSpecificTests.cs" />
     <Compile Include="Generic\SortedSet\SortedSetTest.cs" />
+    <Compile Include="Generic\Common\TestDebugger.cs" />
     <Compile Include="Generic\Stack\Stack_GetEnumerator.cs" />
+    <Compile Include="$(CommonTestPath)\System\Diagnostics\DebuggerAttributes.cs">
+      <Link>Common\System\Diagnostics\DebuggerAttributes.cs</Link>
+    </Compile>
   </ItemGroup>
-  <!-- References are resolved from packages.config -->
-  <ItemGroup>
-    <ProjectReference Include="$(CommonTestPath)\XunitTraitsDiscoverers\XunitTraitsDiscoverers.csproj">
-      <Project>{be8ed8c1-c314-4c4e-a929-64c9c8b3552a}</Project>
-      <Name>XunitTraitsDiscoverers</Name>
-    </ProjectReference>
+  <!-- Performance Tests -->
+  <ItemGroup Condition="'$(RunPerfTestsForProject)' == 'true'">
+    <Compile Include="Performance\Perf.Dictionary.cs" />
+    <Compile Include="Performance\Perf.List.cs" />
+    <Compile Include="$(CommonTestPath)\Performance\PerfUtils.cs">
+      <Link>Common\Performance\PerfUtils.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

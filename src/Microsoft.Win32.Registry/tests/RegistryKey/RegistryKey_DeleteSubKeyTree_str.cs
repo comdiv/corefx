@@ -1,151 +1,86 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Xunit;
-using Microsoft.Win32;
 using System;
-using System.Text;
-using System.Threading;
+using System.Linq;
+using System.Reflection;
+using Xunit;
 
 namespace Microsoft.Win32.RegistryTests
 {
-    public class RegistryKey_DeleteSubKeyTree_str : IDisposable
+    public class RegistryKey_DeleteSubKeyTree_str : RegistryTestsBase
     {
-        // Variables needed
-        private RegistryKey _rk1, _rk2;
-        private String _testKeyName = "REG_TEST_5";
-        private static int s_keyCount = 0;
-
-        public void TestInitialize()
+        [Fact]
+        public void NegativeTests()
         {
-            var counter = Interlocked.Increment(ref s_keyCount);
-            _testKeyName += counter.ToString();
-            _rk1 = Microsoft.Win32.Registry.CurrentUser;
-            if (_rk1.OpenSubKey(_testKeyName) != null)
-                _rk1.DeleteSubKeyTree(_testKeyName);
-        }
+            const string name = "Test";
 
-        public RegistryKey_DeleteSubKeyTree_str()
-        {
-            TestInitialize();
+            // Should throw if passed subkey name is null
+            Assert.Throws<ArgumentNullException>(() => TestRegistryKey.DeleteSubKeyTree(null));
+
+            // Should throw if target subkey is system subkey and name is empty
+            Assert.Throws<ArgumentException>(() => Registry.CurrentUser.DeleteSubKeyTree(string.Empty));
+
+            // Should throw because subkey doesn't exists
+            Assert.Throws<ArgumentException>(() => TestRegistryKey.DeleteSubKeyTree(name));
+
+            // Should throw because RegistryKey is readonly
+            using (var rk = TestRegistryKey.OpenSubKey(string.Empty, false))
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => rk.DeleteSubKeyTree(name));
+            }
+
+            // Should throw if RegistryKey is closed
+            Assert.Throws<ObjectDisposedException>(() =>
+            {
+                TestRegistryKey.Dispose();
+                TestRegistryKey.DeleteSubKeyTree(name);
+            });
         }
 
         [Fact]
-        public void Test01()
+        public void SelfDeleteTest()
         {
-            // [] Passing in null should throw ArgumentNullException
+            using (var rk = TestRegistryKey.CreateSubKey(TestRegistryKeyName))
+            {
+                rk.CreateSubKey(TestRegistryKeyName);
+                rk.DeleteSubKeyTree("");
+            }
 
-            _rk1 = Microsoft.Win32.Registry.CurrentUser;
-            Action a = () => { _rk1.DeleteSubKeyTree(null); };
-            Assert.Throws<ArgumentNullException>(() => { a(); });
+            Assert.Null(TestRegistryKey.OpenSubKey(TestRegistryKeyName));
         }
 
         [Fact]
-        public void Test02()
+        public void DeleteSubKeyTreeTest()
         {
-            // [] Passing in String.Empty should throw
-            Action a = () => { _rk1.DeleteSubKeyTree(""); };
-            Assert.Throws<ArgumentException>(() => { a(); });
+            // Creating new SubKey and deleting it
+            TestRegistryKey.CreateSubKey(TestRegistryKeyName);
+            Assert.NotNull(TestRegistryKey.OpenSubKey(TestRegistryKeyName));
+
+            TestRegistryKey.DeleteSubKeyTree(TestRegistryKeyName);
+            Assert.Null(TestRegistryKey.OpenSubKey(TestRegistryKeyName));
         }
 
         [Fact]
-        public void Test03()
-        {
-            // [] Creating new SubKey and deleting it
-
-            _rk1 = Microsoft.Win32.Registry.CurrentUser;
-            _rk1.CreateSubKey(_testKeyName);
-            if (_rk1.OpenSubKey(_testKeyName) == null)
-            {
-                Assert.False(true, "Error SubKey does not exist.");
-            }
-
-            _rk1.DeleteSubKeyTree(_testKeyName);
-            if (_rk1.OpenSubKey(_testKeyName) != null)
-            {
-                Assert.False(true, "Error SubKey not removed properly");
-            }
-        }
-
-        [Fact]
-        public void Test04()
-        {
-            // [] Give subkey a value and then delete tree
-
-            _rk1 = Microsoft.Win32.Registry.CurrentUser;
-            _rk1.CreateSubKey(_testKeyName);
-            if (_rk1.OpenSubKey(_testKeyName) == null)
-            {
-                Assert.False(true, "Error Could not get subkey");
-            }
-            _rk1.DeleteSubKeyTree(_testKeyName);
-            if (_rk1.OpenSubKey(_testKeyName) != null)
-            {
-                Assert.False(true, "Error SubKey still there");
-            }
-
-            // CreateSubKey should just open a SubKeyIfIt already exists
-            _rk2 = _rk1.CreateSubKey(_testKeyName);
-            _rk2.CreateSubKey("BLAH");
-            
-            if (_rk1.OpenSubKey(_testKeyName).OpenSubKey("BLAH") == null)
-            {
-                Assert.False(true, "Error Expected get not returned");
-            }
-            _rk2.DeleteSubKey("BLAH");
-            if (_rk2.OpenSubKey("BLAH") != null)
-            {
-                Assert.False(true, "Error SubKey was not deleted");
-            }
-        }
-
-        [Fact]
-        public void Test05()
+        public void DeleteSubKeyTreeTest2()
         {
             // [] Add in multiple subkeys and then delete the root key
+            string[] subKeyNames = Enumerable.Range(1, 9).Select(x => "BLAH_" + x.ToString()).ToArray();
 
-            _rk2 = _rk1.CreateSubKey(_testKeyName);
-            for (int i = 0; i < 10; i++)
-                _rk2.CreateSubKey("BLAH_" + i.ToString());
-
-            // this should have no effect, key does not exist
-            _rk2.DeleteSubKey("blah_9");
-
-            if (_rk2.SubKeyCount != 9)
+            using (var rk = TestRegistryKey.CreateSubKey(TestRegistryKeyName))
             {
-                Assert.False(true, "Error Incorrect number of subkeys , count==" + _rk2.SubKeyCount);
-            }
-            for (int i = 0; i < 9; i++)
-            {
-                if (!_rk2.GetSubKeyNames()[i].Equals("BLAH_" + i.ToString()))
+                foreach (var subKeyName in subKeyNames)
                 {
-                    Assert.False(true, "Error" + i.ToString() + "! Incorrect name of subKey");
+                    var rk2 = rk.CreateSubKey(subKeyName);
+                    Assert.NotNull(rk2);
+                    Assert.NotNull(rk2.CreateSubKey("Test"));
                 }
+
+                Assert.Equal(subKeyNames, rk.GetSubKeyNames());
             }
 
-            _rk1.DeleteSubKeyTree(_testKeyName);
-            if (_rk1.OpenSubKey(_testKeyName) != null)
-            {
-                Assert.False(true, "Error Subtree not deleted");
-            }
-        }
-
-        [Fact]
-        public void Test06()
-        {
-            StringBuilder sb = new StringBuilder("");
-            for (int i = 0; i < 256; i++)
-                sb.Append(",");
-            Action a = () => { _rk1.CreateSubKey(sb.ToString()); };
-            Assert.Throws<ArgumentException>(() => { a(); });
-        }
-
-        public void Dispose()
-        {
-            _rk1 = Microsoft.Win32.Registry.CurrentUser;
-
-            if (_rk1.OpenSubKey(_testKeyName) != null)
-                _rk1.DeleteSubKeyTree(_testKeyName);
+            TestRegistryKey.DeleteSubKeyTree(TestRegistryKeyName);
+            Assert.Null(TestRegistryKey.OpenSubKey(TestRegistryKeyName));
         }
     }
 }

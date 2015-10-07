@@ -7,13 +7,14 @@
     <ProjectGuid>{BE28323E-327A-4E0F-B7F9-16AB7EAB59DD}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AssemblyName>System.Linq.Parallel</AssemblyName>
-    <AssemblyVersion>4.0.0.0</AssemblyVersion>
+    <AssemblyVersion>4.0.1.0</AssemblyVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' "></PropertyGroup>
-  <!-- References are resolved from packages.config -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  </PropertyGroup>
   <!-- Compiled Source Files -->
   <ItemGroup>
     <Compile Include="System\Linq\Parallel\Channels\AsynchronousChannel.cs" />
@@ -51,6 +52,7 @@
     <Compile Include="System\Linq\Parallel\Partitioning\UnorderedHashRepartitionStream.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\AssociativeAggregationOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\BinaryQueryOperator.cs" />
+    <Compile Include="System\Linq\Parallel\QueryOperators\Binary\ConcatQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\ExceptQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\GroupJoinQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Binary\HashJoinQueryOperatorEnumerator.cs" />
@@ -106,7 +108,6 @@
     <Compile Include="System\Linq\Parallel\QueryOperators\ScanQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\UnaryQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Unary\AnyAllSearchOperator.cs" />
-    <Compile Include="System\Linq\Parallel\QueryOperators\Unary\ConcatQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Unary\ContainsSearchOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Unary\DefaultIfEmptyQueryOperator.cs" />
     <Compile Include="System\Linq\Parallel\QueryOperators\Unary\DistinctQueryOperator.cs" />
@@ -157,13 +158,10 @@
   </ItemGroup>
   <!-- Common or Common-branched source files -->
   <ItemGroup>
-    <Compile Include="$(CommonPath)\System\ArrayT.cs">
-      <Link>Common\System\ArrayT.cs</Link>
-    </Compile>
   </ItemGroup>
   <!-- Resource files -->
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

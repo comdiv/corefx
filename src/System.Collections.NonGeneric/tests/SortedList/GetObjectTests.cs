@@ -1,15 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.Collections;
 using System.Globalization;
 using System.Text;
 using Xunit;
 
-namespace System.Collections.SortedListTests
+namespace System.Collections.Tests
 {
-    public class GetObjectTests : IComparer
+    public class SortedList_GetObjectTests : IComparer
     {
         public virtual int Compare(object obj1, object obj2)  // ICompare satisfier.
         {
@@ -18,7 +16,7 @@ namespace System.Collections.SortedListTests
 
 
         [Fact]
-        [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+        [ActiveIssue(846, PlatformID.AnyUnix)]
         public void Test01()
         {
             StringBuilder sblMsg = new StringBuilder(99);

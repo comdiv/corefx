@@ -4,6 +4,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
@@ -20,7 +21,7 @@ public static class DataContractSerializerTests
     [Fact]
     public static void DCS_DateTimeOffsetAsRoot()
     {
-        var offsetMinutes = TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes;
+        var offsetMinutes = TimeZoneInfo.Local.GetUtcOffset(new DateTime(2013, 1, 2)).TotalMinutes;
         var objs = new DateTimeOffset[]
         {
             // Adding offsetMinutes so the DateTime component in serialized strings are time-zone independent
@@ -43,7 +44,10 @@ public static class DataContractSerializerTests
         };
         for (int i = 0; i < objs.Length; ++i)
         {
-            Assert.StrictEqual(SerializeAndDeserialize<DateTimeOffset>(objs[i], serializedStrings[i]), objs[i]);
+            var actual = objs[i];
+            var expected = SerializeAndDeserialize<DateTimeOffset>(actual, serializedStrings[i]);
+            Assert.StrictEqual(expected, actual);
+            Assert.StrictEqual(expected.Offset, actual.Offset);
         }
     }
 
@@ -84,7 +88,7 @@ public static class DataContractSerializerTests
     [Fact]
     public static void DCS_DateTimeAsRoot()
     {
-        var offsetMinutes = (int)TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes;
+        var offsetMinutes = (int)TimeZoneInfo.Local.GetUtcOffset(new DateTime(2013, 1, 2)).TotalMinutes;
         Assert.StrictEqual(SerializeAndDeserialize<DateTime>(new DateTime(2013, 1, 2), "<dateTime xmlns=\"http://schemas.microsoft.com/2003/10/Serialization/\">2013-01-02T00:00:00</dateTime>"), new DateTime(2013, 1, 2));
         Assert.StrictEqual(SerializeAndDeserialize<DateTime>(new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Local), string.Format("<dateTime xmlns=\"http://schemas.microsoft.com/2003/10/Serialization/\">2013-01-02T03:04:05.006{0:+;-}{1}</dateTime>", offsetMinutes, new TimeSpan(0, offsetMinutes, 0).ToString(@"hh\:mm"))), new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Local));
         Assert.StrictEqual(SerializeAndDeserialize<DateTime>(new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Unspecified), "<dateTime xmlns=\"http://schemas.microsoft.com/2003/10/Serialization/\">2013-01-02T03:04:05.006</dateTime>"), new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Unspecified));
@@ -562,29 +566,31 @@ public static class DataContractSerializerTests
         Assert.True(y.RO1.Count == 1, getCheckFailureMsg("RO1"));
         Assert.True(y.RO2.Count == 1, getCheckFailureMsg("RO2"));
 
-
-
-
         foreach (var item in x.F1)
         {
             Assert.True(y.F1.Contains(item), getCheckFailureMsg("F1"));
         }
+
         foreach (var item in x.F2)
         {
             Assert.True(y.F2.Contains(item), getCheckFailureMsg("F2"));
         }
+
         foreach (var item in x.P1)
         {
             Assert.True(y.P1.Contains(item), getCheckFailureMsg("P1"));
         }
+
         foreach (var item in x.P2)
         {
             Assert.True(y.P2.Contains(item), getCheckFailureMsg("P2"));
         }
+
         foreach (var item in x.RO1)
         {
             Assert.True(y.RO1.Contains(item), getCheckFailureMsg("RO1"));
         }
+
         foreach (var item in x.RO2)
         {
             Assert.True(y.RO2.Contains(item), getCheckFailureMsg("RO2"));
@@ -941,7 +947,7 @@ public static class DataContractSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCS_XElementAsRoot()
     {
         var original = new XElement("ElementName1");
@@ -953,7 +959,7 @@ public static class DataContractSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCS_WithXElement()
     {
         var original = new WithXElement(true);
@@ -974,7 +980,7 @@ public static class DataContractSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCS_WithXElementWithNestedXElement()
     {
         var original = new WithXElementWithNestedXElement(true);
@@ -985,7 +991,7 @@ public static class DataContractSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCS_WithArrayOfXElement()
     {
         var original = new WithArrayOfXElement(true);
@@ -998,7 +1004,7 @@ public static class DataContractSerializerTests
     }
 
     [Fact]
-    [ActiveIssue(846, PlatformID.Linux | PlatformID.OSX)]
+    [ActiveIssue(846, PlatformID.AnyUnix)]
     public static void DCS_WithListOfXElement()
     {
         var original = new WithListOfXElement(true);
@@ -1171,7 +1177,6 @@ public static class DataContractSerializerTests
         ClassImplementsInterface value = new ClassImplementsInterface() { ClassID = "ClassID", DisplayName = "DisplayName", Id = "Id", IsLoaded = true };
         var actual = SerializeAndDeserialize<ClassImplementsInterface>(value, "<ClassImplementsInterface xmlns=\"http://schemas.datacontract.org/2004/07/SerializationTypes\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><DisplayName>DisplayName</DisplayName><Id>Id</Id></ClassImplementsInterface>");
 
-
         Assert.StrictEqual(value.DisplayName, actual.DisplayName);
         Assert.StrictEqual(value.Id, actual.Id);
     }
@@ -1246,6 +1251,7 @@ public static class DataContractSerializerTests
             return PrivateProperty;
         }
     }
+
     #endregion
 
     [Fact]
@@ -1358,16 +1364,19 @@ public static class DataContractSerializerTests
         var value = new TypeWithDateTimeOffsetTypeProperty() { ModifiedTime = new DateTimeOffset(new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Utc)) };
         var actual = SerializeAndDeserialize(value, "<TypeWithDateTimeOffsetTypeProperty xmlns=\"http://schemas.datacontract.org/2004/07/SerializationTypes\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><ModifiedTime xmlns:a=\"http://schemas.datacontract.org/2004/07/System\"><a:DateTime>2013-01-02T03:04:05.006Z</a:DateTime><a:OffsetMinutes>0</a:OffsetMinutes></ModifiedTime></TypeWithDateTimeOffsetTypeProperty>");
         Assert.StrictEqual(value.ModifiedTime, actual.ModifiedTime);
+        Assert.StrictEqual(value.ModifiedTime.Offset, actual.ModifiedTime.Offset);
 
-        var offsetMinutes = TimeZoneInfo.Local.BaseUtcOffset.TotalMinutes;
+        var offsetMinutes = TimeZoneInfo.Local.GetUtcOffset(new DateTime(2013, 1, 2)).TotalMinutes;
         // Adding offsetMinutes to ModifiedTime property so the DateTime component in serialized strings are time-zone independent
         value = new TypeWithDateTimeOffsetTypeProperty() { ModifiedTime = new DateTimeOffset(new DateTime(2013, 1, 2, 3, 4, 5, 6).AddMinutes(offsetMinutes)) };
         actual = SerializeAndDeserialize(value, string.Format("<TypeWithDateTimeOffsetTypeProperty xmlns=\"http://schemas.datacontract.org/2004/07/SerializationTypes\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><ModifiedTime xmlns:a=\"http://schemas.datacontract.org/2004/07/System\"><a:DateTime>2013-01-02T03:04:05.006Z</a:DateTime><a:OffsetMinutes>{0}</a:OffsetMinutes></ModifiedTime></TypeWithDateTimeOffsetTypeProperty>", offsetMinutes));
         Assert.StrictEqual(value.ModifiedTime, actual.ModifiedTime);
+        Assert.StrictEqual(value.ModifiedTime.Offset, actual.ModifiedTime.Offset);
 
         value = new TypeWithDateTimeOffsetTypeProperty() { ModifiedTime = new DateTimeOffset(new DateTime(2013, 1, 2, 3, 4, 5, 6, DateTimeKind.Local).AddMinutes(offsetMinutes)) };
         actual = SerializeAndDeserialize(value, string.Format("<TypeWithDateTimeOffsetTypeProperty xmlns=\"http://schemas.datacontract.org/2004/07/SerializationTypes\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><ModifiedTime xmlns:a=\"http://schemas.datacontract.org/2004/07/System\"><a:DateTime>2013-01-02T03:04:05.006Z</a:DateTime><a:OffsetMinutes>{0}</a:OffsetMinutes></ModifiedTime></TypeWithDateTimeOffsetTypeProperty>", offsetMinutes));
         Assert.StrictEqual(value.ModifiedTime, actual.ModifiedTime);
+        Assert.StrictEqual(value.ModifiedTime.Offset, actual.ModifiedTime.Offset);
     }
 
     [Fact]
@@ -1442,11 +1451,28 @@ public static class DataContractSerializerTests
     [Fact]
     public static void DCS_GenericQueue()
     {
+        var expectedFormat = @"<QueueOfint xmlns=""http://schemas.datacontract.org/2004/07/System.Collections.Generic"" xmlns:i=""http://www.w3.org/2001/XMLSchema-instance""><_array xmlns:a=""http://schemas.microsoft.com/2003/10/Serialization/Arrays""><a:int>1</a:int><a:int>0</a:int><a:int>0</a:int><a:int>0</a:int></_array><_head>0</_head><_size>1</_size>{0}<_tail>1</_tail><_version>2</_version></QueueOfint>";
+        #if DESKTOP
+        var expectedOnDesktop = string.Format(expectedFormat, string.Empty);
+        DCS_GenericQueueHelper(expectedOnDesktop, expectedOnDesktop);
+        #else
+        DCS_GenericQueueHelper(string.Format(expectedFormat, @"<_syncRoot i:nil=""true"" />"), string.Format(expectedFormat, @"<_syncRoot/>"));
+        #endif
+    }
+
+    private static void DCS_GenericQueueHelper(string expectedWithUninitializedSyncRoot, string expectedWithInitializedSyncRoot)
+    {
         Queue<int> value = new Queue<int>();
         value.Enqueue(1);
-        var deserializedValue = SerializeAndDeserialize<Queue<int>>(value, "<QueueOfint xmlns=\"http://schemas.datacontract.org/2004/07/System.Collections.Generic\" xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\"><_array xmlns:a=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\"><a:int>1</a:int><a:int>0</a:int><a:int>0</a:int><a:int>0</a:int></_array><_head>0</_head><_size>1</_size><_tail>1</_tail><_version>2</_version></QueueOfint>");
+        var deserializedValue = SerializeAndDeserialize<Queue<int>>(value, expectedWithUninitializedSyncRoot);
         var a1 = value.ToArray();
         var a2 = deserializedValue.ToArray();
+        Assert.StrictEqual(a1.Length, a2.Length);
+        Assert.StrictEqual(a1[0], a2[0]);        
+        object syncRoot = ((ICollection)value).SyncRoot;
+        deserializedValue = SerializeAndDeserialize<Queue<int>>(value, expectedWithInitializedSyncRoot);
+        a1 = value.ToArray();
+        a2 = deserializedValue.ToArray();
         Assert.StrictEqual(a1.Length, a2.Length);
         Assert.StrictEqual(a1[0], a2[0]);
     }
@@ -1688,7 +1714,7 @@ public static class DataContractSerializerTests
         {
         }
 
-        var actual = SerializeAndDeserialize<TestableDerivedException>(value, "<TestableDerivedException xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:x=\"http://www.w3.org/2001/XMLSchema\" xmlns=\"http://schemas.datacontract.org/2004/07/\"><ClassName i:type=\"x:string\" xmlns=\"\">TestableDerivedException</ClassName><Message i:type=\"x:string\" xmlns=\"\">Testable Derived Exception Message.</Message><Data i:type=\"a:ArrayOfKeyValueOfanyTypeanyType\" xmlns:a=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\" xmlns=\"\"><a:KeyValueOfanyTypeanyType><a:Key i:type=\"x:string\">testkey</a:Key><a:Value i:type=\"x:string\">test value</a:Value></a:KeyValueOfanyTypeanyType></Data><InnerException i:type=\"a:Exception\" xmlns:a=\"http://schemas.datacontract.org/2004/07/System\" xmlns:x=\"http://www.w3.org/2001/XMLSchema\" xmlns=\"\"><ClassName i:type=\"x:string\">System.Exception</ClassName><Message i:type=\"x:string\">Inner exception message.</Message><Data i:nil=\"true\" /><InnerException i:nil=\"true\" /><HelpURL i:nil=\"true\" /><StackTraceString i:nil=\"true\" /><RemoteStackTraceString i:nil=\"true\" /><RemoteStackIndex i:type=\"x:int\">0</RemoteStackIndex><ExceptionMethod i:nil=\"true\" /><HResult i:type=\"x:int\">-2146233088</HResult><Source i:nil=\"true\" /><WatsonBuckets i:nil=\"true\" /></InnerException><HelpURL i:nil=\"true\" xmlns=\"\" /><StackTraceString i:type=\"x:string\" xmlns=\"\">" + value.StackTrace + "</StackTraceString><RemoteStackTraceString i:nil=\"true\" xmlns=\"\" /><RemoteStackIndex i:type=\"x:int\" xmlns=\"\">0</RemoteStackIndex><ExceptionMethod i:nil=\"true\" xmlns=\"\" /><HResult i:type=\"x:int\" xmlns=\"\">-2146233088</HResult><Source i:nil=\"true\" xmlns=\"\" /><WatsonBuckets i:nil=\"true\" xmlns=\"\" /><TestProperty i:type=\"x:string\" xmlns=\"\">TestPropertyValue!</TestProperty></TestableDerivedException>");
+        var actual = SerializeAndDeserialize<TestableDerivedException>(value, "<TestableDerivedException xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:x=\"http://www.w3.org/2001/XMLSchema\" xmlns=\"http://schemas.datacontract.org/2004/07/\"><ClassName i:type=\"x:string\" xmlns=\"\">TestableDerivedException</ClassName><Message i:type=\"x:string\" xmlns=\"\">Testable Derived Exception Message.</Message><Data i:type=\"a:ArrayOfKeyValueOfanyTypeanyType\" xmlns:a=\"http://schemas.microsoft.com/2003/10/Serialization/Arrays\" xmlns=\"\"><a:KeyValueOfanyTypeanyType><a:Key i:type=\"x:string\">testkey</a:Key><a:Value i:type=\"x:string\">test value</a:Value></a:KeyValueOfanyTypeanyType></Data><InnerException i:type=\"a:Exception\" xmlns:a=\"http://schemas.datacontract.org/2004/07/System\" xmlns=\"\"><ClassName i:type=\"x:string\">System.Exception</ClassName><Message i:type=\"x:string\">Inner exception message.</Message><Data i:nil=\"true\" /><InnerException i:nil=\"true\" /><HelpURL i:nil=\"true\" /><StackTraceString i:nil=\"true\" /><RemoteStackTraceString i:nil=\"true\" /><RemoteStackIndex i:type=\"x:int\">0</RemoteStackIndex><ExceptionMethod i:nil=\"true\" /><HResult i:type=\"x:int\">-2146233088</HResult><Source i:nil=\"true\" /><WatsonBuckets i:nil=\"true\" /></InnerException><HelpURL i:nil=\"true\" xmlns=\"\" /><StackTraceString i:type=\"x:string\" xmlns=\"\">" + value.StackTrace + "</StackTraceString><RemoteStackTraceString i:nil=\"true\" xmlns=\"\" /><RemoteStackIndex i:type=\"x:int\" xmlns=\"\">0</RemoteStackIndex><ExceptionMethod i:nil=\"true\" xmlns=\"\" /><HResult i:type=\"x:int\" xmlns=\"\">-2146233088</HResult><Source i:nil=\"true\" xmlns=\"\" /><WatsonBuckets i:nil=\"true\" xmlns=\"\" /><TestProperty i:type=\"x:string\" xmlns=\"\">TestPropertyValue!</TestProperty></TestableDerivedException>");
 
         Assert.StrictEqual(value.Message, actual.Message);
         Assert.NotNull(actual.InnerException);
@@ -1703,6 +1729,16 @@ public static class DataContractSerializerTests
         Assert.StrictEqual(value.TestProperty, actual.TestProperty);
     }
 
+    [Fact]
+    public static void DCS_DeserializeEmptyString()
+    {
+        var serializer = new DataContractSerializer(typeof (object));
+        Assert.Throws<XmlException>(() =>
+        {
+            serializer.ReadObject(new MemoryStream());
+        });
+    }
+
     private static T SerializeAndDeserialize<T>(T value, string baseline, DataContractSerializerSettings settings = null, Func<DataContractSerializer> serializerFactory = null)
     {
         DataContractSerializer dcs;
@@ -1715,42 +1751,21 @@ public static class DataContractSerializerTests
             dcs = (settings != null) ? new DataContractSerializer(typeof(T), settings) : new DataContractSerializer(typeof(T));
         }
 
-        Console.WriteLine("Testing input value : {0}", value);
-
         using (MemoryStream ms = new MemoryStream())
         {
-            try
-            {
-                dcs.WriteObject(ms, value);
-                ms.Position = 0;
-            }
-            catch
-            {
-                Console.WriteLine("Error while serializing value");
-                throw;
-            }
+            dcs.WriteObject(ms, value);
+            ms.Position = 0;
 
             string actualOutput = new StreamReader(ms).ReadToEnd();
             Utils.CompareResult result = Utils.Compare(baseline, actualOutput);
 
-            if (!result.Equal)
-            {
-                Console.WriteLine(result.ErrorMessage);
-                throw new Exception(string.Format("Test failed for input : {0}", value));
-            }
+            Assert.True(result.Equal, string.Format("{1}{0}Test failed for input: {2}{0}Expected: {3}{0}Actual: {4}",
+                Environment.NewLine, result.ErrorMessage, value, baseline, actualOutput));
 
             ms.Position = 0;
             T deserialized;
 
-            try
-            {
-                deserialized = (T)dcs.ReadObject(ms);
-            }
-            catch
-            {
-                Console.WriteLine("Error deserializing value. the serialized string was:" + Environment.NewLine + actualOutput);
-                throw;
-            }
+            deserialized = (T)dcs.ReadObject(ms);
 
             return deserialized;
         }
@@ -1768,7 +1783,7 @@ public static class DataContractSerializerTests
             dcs = (settings != null) ? new DataContractSerializer(typeof(T), settings) : new DataContractSerializer(typeof(T));
         }
 
-        Console.WriteLine("Testing string to deserialize: {0}", stringToDeserialize);
+        Debug.WriteLine("Testing string to deserialize: {0}", stringToDeserialize);
 
         byte[] bytesToDeserialize = Encoding.UTF8.GetBytes(stringToDeserialize);
         using (MemoryStream ms = new MemoryStream(bytesToDeserialize))
@@ -1785,7 +1800,7 @@ public static class DataContractSerializerTests
             {
                 if (shouldReportDeserializationExceptions)
                 {
-                    Console.WriteLine("Error deserializing value - could not create type {0}", typeof(T).ToString());
+                    Debug.WriteLine("Error deserializing value - could not create type {0}", typeof(T).ToString());
                 }
                 throw;
             }

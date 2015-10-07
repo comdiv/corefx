@@ -6,16 +6,17 @@ using System;
 using System.Text;
 using System.Globalization;
 
-namespace System.Globalization.Extensions.Tests
+namespace System.Globalization.Tests
 {
     public class StringNormalization
     {
         [Fact]
-        [ActiveIssue(810, PlatformID.Linux | PlatformID.OSX)]
         public void NormalizeTest()
         {
             string composed = "\u00C4\u00C7"; // "ÄÇ"
             string decomposed = "A\u0308C\u0327";
+
+            Assert.Throws<ArgumentNullException>("value", () => { string nullString = null; nullString.IsNormalized(); });
 
             Assert.True(composed.IsNormalized());
             Assert.True(composed.IsNormalized(NormalizationForm.FormC));
@@ -50,7 +51,6 @@ namespace System.Globalization.Extensions.Tests
         }
 
         [Fact]
-        [ActiveIssue(810, PlatformID.Linux | PlatformID.OSX)]
         public void ExceptionsTest()
         {
             string fi = "\uFB01";
@@ -64,11 +64,14 @@ namespace System.Globalization.Extensions.Tests
 
             // "Expected to throw with invalid codepoint"
             Assert.Throws<ArgumentException>(() => invalidCodepoint.Normalize());
+            Assert.Throws<ArgumentException>(() => invalidCodepoint.IsNormalized());
             // "Expected to throw with invalid surrogate pair"
             Assert.Throws<ArgumentException>(() => invalidSurrogate.Normalize());
+            Assert.Throws<ArgumentException>(() => invalidSurrogate.IsNormalized());
 
             //  "Expected ArgumentNullException when passing null string"
             Assert.Throws<ArgumentNullException>(() => StringNormalizationExtensions.Normalize(null));
+            Assert.Throws<ArgumentNullException>(() => StringNormalizationExtensions.IsNormalized(null));
         }
     }
 }

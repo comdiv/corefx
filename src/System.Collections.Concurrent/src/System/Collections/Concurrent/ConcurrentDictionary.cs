@@ -1033,7 +1033,7 @@ namespace System.Collections.Concurrent
                 //key exists, try to update
                 {
                     TValue newValue = updateValueFactory(key, oldValue);
-                    if (TryUpdate(key, newValue, oldValue))
+                    if (TryUpdateInternal(key, hashcode, newValue, oldValue))
                     {
                         return newValue;
                     }
@@ -1080,7 +1080,7 @@ namespace System.Collections.Concurrent
                 //key exists, try to update
                 {
                     TValue newValue = updateValueFactory(key, oldValue);
-                    if (TryUpdate(key, newValue, oldValue))
+                    if (TryUpdateInternal(key, hashcode, newValue, oldValue))
                     {
                         return newValue;
                     }
@@ -1359,7 +1359,7 @@ namespace System.Collections.Concurrent
         {
             if (key == null) throw new ArgumentNullException("key");
 
-            return (key is TKey) && ((ConcurrentDictionary<TKey, TValue>)this).ContainsKey((TKey)key);
+            return (key is TKey) && this.ContainsKey((TKey)key);
         }
 
         /// <summary>Provides an <see cref="T:System.Collections.Generics.IDictionaryEnumerator"/> for the
@@ -1685,7 +1685,8 @@ namespace System.Collections.Concurrent
                 // Add more locks
                 if (_growLockArray && tables._locks.Length < MAX_LOCK_NUMBER)
                 {
-                    newLocks = ArrayT<object>.Resize(tables._locks, tables._locks.Length * 2, tables._locks.Length);
+                    newLocks = new object[tables._locks.Length * 2];
+                    Array.Copy(tables._locks, 0, newLocks, 0, tables._locks.Length);
                     for (int i = tables._locks.Length; i < newLocks.Length; i++)
                     {
                         newLocks[i] = new object();

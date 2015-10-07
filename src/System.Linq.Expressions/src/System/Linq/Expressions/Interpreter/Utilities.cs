@@ -4,30 +4,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic.Utils;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Threading;
-using System.Dynamic.Utils;
-using AstUtils = System.Linq.Expressions.Interpreter.Utils;
 using System.Runtime.CompilerServices;
+using System.Threading;
+
+using AstUtils = System.Linq.Expressions.Utils;
 
 namespace System.Linq.Expressions.Interpreter
 {
-    internal sealed class ExplicitBox : IStrongBox
-    {
-        public object Value { get; set; }
-
-        public ExplicitBox()
-        {
-        }
-
-        public ExplicitBox(object value)
-        {
-            this.Value = value;
-        }
-    }
-
     internal static partial class DelegateHelpers
     {
         private const int MaximumArity = 17;
@@ -102,37 +89,91 @@ namespace System.Linq.Expressions.Interpreter
     {
         public static object Int32ToObject(int i)
         {
+            switch (i)
+            {
+                case -1:
+                    return Int32_m;
+                case 0:
+                    return Int32_0;
+                case 1:
+                    return Int32_1;
+                case 2:
+                    return Int32_2;
+            }
+
             return i;
         }
+        
+        private static readonly object Int32_m = -1;
+        private static readonly object Int32_0 = 0;
+        private static readonly object Int32_1 = 1;
+        private static readonly object Int32_2 = 2;
+
         public static object BooleanToObject(bool b)
         {
             return b ? True : False;
         }
 
-        internal static object True = true;
-        internal static object False = false;
+        internal static readonly object True = true;
+        internal static readonly object False = false;
 
         internal static object GetPrimitiveDefaultValue(Type type)
         {
+            object result;
+
             switch (System.Dynamic.Utils.TypeExtensions.GetTypeCode(type))
             {
-                case TypeCode.Boolean: return ScriptingRuntimeHelpers.False;
-                case TypeCode.SByte: return default(SByte);
-                case TypeCode.Byte: return default(Byte);
-                case TypeCode.Char: return default(Char);
-                case TypeCode.Int16: return default(Int16);
-                case TypeCode.Int32: return ScriptingRuntimeHelpers.Int32ToObject(0);
-                case TypeCode.Int64: return default(Int64);
-                case TypeCode.UInt16: return default(UInt16);
-                case TypeCode.UInt32: return default(UInt32);
-                case TypeCode.UInt64: return default(UInt64);
-                case TypeCode.Single: return default(Single);
-                case TypeCode.Double: return default(Double);
-                //            case TypeCode.DBNull: return default(DBNull);
-                case TypeCode.DateTime: return default(DateTime);
-                case TypeCode.Decimal: return default(Decimal);
-                default: return null;
+                case TypeCode.Boolean:
+                    result = ScriptingRuntimeHelpers.False;
+                    break;
+                case TypeCode.SByte:
+                    result = default(SByte);
+                    break;
+                case TypeCode.Byte:
+                    result = default(Byte);
+                    break;
+                case TypeCode.Char:
+                    result = default(Char);
+                    break;
+                case TypeCode.Int16:
+                    result = default(Int16);
+                    break;
+                case TypeCode.Int32:
+                    result = ScriptingRuntimeHelpers.Int32_0;
+                    break;
+                case TypeCode.Int64:
+                    result = default(Int64);
+                    break;
+                case TypeCode.UInt16:
+                    result = default(UInt16);
+                    break;
+                case TypeCode.UInt32:
+                    result = default(UInt32);
+                    break;
+                case TypeCode.UInt64:
+                    result = default(UInt64);
+                    break;
+
+                case TypeCode.Single:
+                    return default(Single);
+                case TypeCode.Double:
+                    return default(Double);
+                //            case TypeCode.DBNull: 
+                //                  return default(DBNull); 
+                case TypeCode.DateTime:
+                    return default(DateTime);
+                case TypeCode.Decimal:
+                    return default(Decimal);
+                default:
+                    return null;
             }
+
+            if (type.GetTypeInfo().IsEnum)
+            {
+                result = Enum.ToObject(type, result);
+            }
+
+            return result;
         }
     }
 
@@ -423,114 +464,6 @@ namespace System.Linq.Expressions.Interpreter
         }
     }
 
-    /// <summary>
-    /// Provides a dictionary-like object used for caches which holds onto a maximum
-    /// number of elements specified at construction time.
-    /// 
-    /// This class is not thread safe.
-    /// </summary>
-    internal class CacheDict<TKey, TValue>
-    {
-        private readonly Dictionary<TKey, KeyInfo> _dict = new Dictionary<TKey, KeyInfo>();
-        private readonly LinkedList<TKey> _list = new LinkedList<TKey>();
-        private readonly int _maxSize;
-
-        /// <summary>
-        /// Creates a dictionary-like object used for caches.
-        /// </summary>
-        /// <param name="maxSize">The maximum number of elements to store.</param>
-        public CacheDict(int maxSize)
-        {
-            _maxSize = maxSize;
-        }
-
-        /// <summary>
-        /// Tries to get the value associated with 'key', returning true if it's found and
-        /// false if it's not present.
-        /// </summary>
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            KeyInfo storedValue;
-            if (_dict.TryGetValue(key, out storedValue))
-            {
-                LinkedListNode<TKey> node = storedValue.List;
-                if (node.Previous != null)
-                {
-                    // move us to the head of the list...
-                    _list.Remove(node);
-                    _list.AddFirst(node);
-                }
-
-                value = storedValue.Value;
-                return true;
-            }
-
-            value = default(TValue);
-            return false;
-        }
-
-        /// <summary>
-        /// Adds a new element to the cache, replacing and moving it to the front if the
-        /// element is already present.
-        /// </summary>
-        public void Add(TKey key, TValue value)
-        {
-            KeyInfo keyInfo;
-            if (_dict.TryGetValue(key, out keyInfo))
-            {
-                // remove original entry from the linked list
-                _list.Remove(keyInfo.List);
-            }
-            else if (_list.Count == _maxSize)
-            {
-                // we've reached capacity, remove the last used element...
-                LinkedListNode<TKey> node = _list.Last;
-                _list.RemoveLast();
-                bool res = _dict.Remove(node.Value);
-                Debug.Assert(res);
-            }
-
-            // add the new entry to the head of the list and into the dictionary
-            LinkedListNode<TKey> listNode = new LinkedListNode<TKey>(key);
-            _list.AddFirst(listNode);
-            _dict[key] = new CacheDict<TKey, TValue>.KeyInfo(value, listNode);
-        }
-
-        /// <summary>
-        /// Returns the value associated with the given key, or throws KeyNotFoundException
-        /// if the key is not present.
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
-        public TValue this[TKey key]
-        {
-            get
-            {
-                TValue res;
-                if (TryGetValue(key, out res))
-                {
-                    return res;
-                }
-                throw new KeyNotFoundException();
-            }
-            set
-            {
-                Add(key, value);
-            }
-        }
-
-        private struct KeyInfo
-        {
-            internal readonly TValue Value;
-            internal readonly LinkedListNode<TKey> List;
-
-            internal KeyInfo(TValue value, LinkedListNode<TKey> list)
-            {
-                Value = value;
-                List = list;
-            }
-        }
-    }
-
     internal static class Assert
     {
         internal static Exception Unreachable
@@ -584,16 +517,6 @@ namespace System.Linq.Expressions.Interpreter
         Read = 1,
         Write = 2,
         ReadWrite = Read | Write,
-    }
-
-    internal static class Utils
-    {
-        private static readonly DefaultExpression s_voidInstance = Expression.Empty();
-
-        public static DefaultExpression Empty()
-        {
-            return s_voidInstance;
-        }
     }
 
     internal sealed class ListEqualityComparer<T> : EqualityComparer<ICollection<T>>

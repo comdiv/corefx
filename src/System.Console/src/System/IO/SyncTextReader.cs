@@ -1,35 +1,25 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
-using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Globalization;
-using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace System.IO
 {
+    /* SyncTextReader intentionally locks on itself rather than a private lock object.
+     * This is done to synchronize different console readers(Issue#2855).
+     */
     internal sealed class SyncTextReader : TextReader
     {
-        internal TextReader _in;
-        private readonly object _methodLock = new object();
+        private readonly TextReader _in;
 
-        public static TextReader GetSynchronizedTextReader(TextReader reader)
+        public static SyncTextReader GetSynchronizedTextReader(TextReader reader)
         {
-            if (reader == null)
-                throw new ArgumentNullException("reader");
-            Contract.Ensures(Contract.Result<TextReader>() != null);
-            Contract.EndContractBlock();
-
-            if (reader is SyncTextReader)
-                return reader;
-
-            return new SyncTextReader(reader);
+            Debug.Assert(reader != null);
+            return reader as SyncTextReader ??
+                new SyncTextReader(reader);
         }
 
         internal SyncTextReader(TextReader t)
@@ -41,17 +31,16 @@ namespace System.IO
         {
             if (disposing)
             {
-                lock (_methodLock)
+                lock (this)
                 {
-                    // Explicitly pick up a potentially methodimpl'ed Dispose
-                    ((IDisposable)_in).Dispose();
+                    _in.Dispose();
                 }
             }
         }
 
         public override int Peek()
         {
-            lock (_methodLock)
+            lock (this)
             {
                 return _in.Peek();
             }
@@ -59,7 +48,7 @@ namespace System.IO
 
         public override int Read()
         {
-            lock (_methodLock)
+            lock (this)
             {
                 return _in.Read();
             }
@@ -67,7 +56,7 @@ namespace System.IO
 
         public override int Read([In, Out] char[] buffer, int index, int count)
         {
-            lock (_methodLock)
+            lock (this)
             {
                 return _in.Read(buffer, index, count);
             }
@@ -75,7 +64,7 @@ namespace System.IO
 
         public override int ReadBlock([In, Out] char[] buffer, int index, int count)
         {
-            lock (_methodLock)
+            lock (this)
             {
                 return _in.ReadBlock(buffer, index, count);
             }
@@ -83,7 +72,7 @@ namespace System.IO
 
         public override String ReadLine()
         {
-            lock (_methodLock)
+            lock (this)
             {
                 return _in.ReadLine();
             }
@@ -91,7 +80,7 @@ namespace System.IO
 
         public override String ReadToEnd()
         {
-            lock (_methodLock)
+            lock (this)
             {
                 return _in.ReadToEnd();
             }
@@ -99,7 +88,7 @@ namespace System.IO
 
         //
         // On SyncTextReader all APIs should run synchronously, even the async ones.
-        // No explicit locking is needed, as they all just delegate 
+        // No explicit locking is needed, as they all just delegate
         //
 
         public override Task<String> ReadLineAsync()

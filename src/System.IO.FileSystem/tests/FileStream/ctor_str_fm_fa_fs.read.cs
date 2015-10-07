@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public partial class FileStream_ctor_str_fm_fa_fs
     {
@@ -40,6 +40,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
+        [PlatformSpecific(PlatformID.Windows)] // file sharing restriction limitations on Unix
         public void FileShareWithoutReadThrows()
         {
             string fileName = GetTestFilePath();

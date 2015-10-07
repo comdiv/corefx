@@ -326,7 +326,7 @@ namespace System.Linq.Expressions
             return node;
         }
 
-        protected internal override Expression VisitLambda(LambdaExpression node)
+        protected internal override Expression VisitLambda<T>(Expression<T> node)
         {
             if (node.Parameters.Count == 1)
             {
@@ -795,7 +795,7 @@ namespace System.Linq.Expressions
 
         protected internal override Expression VisitExtension(Expression node)
         {
-            // Prefer an overriden ToString, if available.
+            // Prefer an overridden ToString, if available.
             var toString = node.GetType().GetMethod("ToString", Array.Empty<Type>());
             if (toString.DeclaringType != typeof(Expression) && !toString.IsStatic)
             {
